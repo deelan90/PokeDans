@@ -20,6 +20,7 @@ def get_pokemon_cards():
 
         if table:
             cards = []
+
             for offer in table.find_all('tr', class_='offer'):
                 try:
                     # Find the card name
