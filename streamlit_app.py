@@ -269,4 +269,4 @@ if user_email:
         else:
             # Display cards without refreshing the cache
             cards = get_pokemon_cards(collection_link)
-            display_cards(cards) 
+            display_cards(cards)
