@@ -14,11 +14,8 @@ def load_user_data():
             with open(DATA_FILE, 'r') as f:
                 return json.load(f)
         else:
-            # Handle the case where the file doesn't exist
-            st.error("Error: User data file not found.")
             return {} 
     except Exception as e:
-        # Handle any other errors that might occur during loading
         st.error(f"Error loading user data: {e}")
         return {}
 
@@ -34,8 +31,6 @@ def get_pokemon_cards(collection_link):
         response.raise_for_status()  # Raise an exception for bad responses
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        # Extract only the relevant part of the HTML
-        # Get the table with the card data
         table = soup.find('table', id='active')
 
         if table:
@@ -46,40 +41,21 @@ def get_pokemon_cards(collection_link):
                     card_name_element = offer.find('td', class_='meta')
                     if card_name_element:
                         title_element = card_name_element.find('p', class_='title')
-                        if title_element:
-                            card_name = title_element.text.strip()
-                        else:
-                            card_name = "Unknown Card"
+                        card_name = title_element.text.strip() if title_element else "Unknown Card"
                     else:
-                        st.warning(f"Could not find card name for this offer.")
-                        continue  # Move on to the next offer
+                        continue  # Skip if card name not found
 
                     # Find the card value
                     card_value_element = offer.find('td', class_='price')
-                    if card_value_element:
-                        price_element = card_value_element.find('span', class_='js-price')
-                        if price_element:
-                            card_value = price_element.text.strip()
-                        else:
-                            card_value = "Unknown Value"
-                    else:
-                        st.warning(f"Could not find card value for this offer.")
-                        continue  # Move on to the next offer
+                    card_value = card_value_element.find('span', class_='js-price').text.strip() if card_value_element else "Unknown Value"
 
                     # Find the card link
                     card_link_element = offer.find('td', class_='photo')
-                    if card_link_element:
-                        link_element = card_link_element.find('a')
-                        if link_element:
-                            card_link = link_element.get('href')
-                        else:
-                            card_link = "#"
-                    else:
-                        st.warning(f"Could not find card link for this offer.")
-                        continue  # Move on to the next offer
+                    card_link = card_link_element.find('a')['href'] if card_link_element and card_link_element.find('a') else "#"
 
                     # Find the card image
-                    card_image_url = "/api/placeholder/200/300"  # Default placeholder image
+                    card_image_element = card_link_element.find('img') if card_link_element else None
+                    card_image_url = card_image_element['src'] if card_image_element else "/api/placeholder/200/300"
 
                     # Build the card display with a pop-up link
                     card_display = f"""
@@ -114,11 +90,6 @@ def display_cards(cards):
     else:
         st.warning("No cards found or there was an error retrieving the cards.")
 
-# Get the Pokémon card data
-def get_collection_data(collection_link):
-    cards = get_pokemon_cards(collection_link)
-    display_cards(cards)
-
 # Streamlit app starts here
 st.title('Pokémon Card Tracker')
 
@@ -148,12 +119,13 @@ if user_email:
 
     # Add a refresh button
     if st.button('Refresh'):
-        # Clear the existing card display
         st.experimental_rerun()
-        # Load and display the updated data
         if user_email in user_data:
             collection_link = user_data[user_email]
             get_collection_data(collection_link)
         else:
-            # If no collection link is found, display an error message
             st.error("Please save your collection link first.")
+
+def get_collection_data(collection_link):
+    cards = get_pokemon_cards(collection_link)
+    display_cards(cards)
