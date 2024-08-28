@@ -20,7 +20,6 @@ def get_pokemon_cards():
 
         if table:
             cards = []
-
             for offer in table.find_all('tr', class_='offer'):
                 try:
                     # Find the card name
@@ -34,7 +33,7 @@ def get_pokemon_cards():
 
 
                     # Find the card value
-                    card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
+                    card_value_element = offer.find('td', class_='price').find('span', class='js-price')
                     if card_value_element:
                         card_value = card_value_element.text
                     else:
