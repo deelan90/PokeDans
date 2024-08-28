@@ -82,7 +82,7 @@ def get_pokemon_cards(collection_link):
         st.error(f"An unexpected error occurred: {e}")
         return None
 
-# Fetch and display the data
+# Function to display the cards
 def display_cards(cards):
     if cards:
         for card in cards:
@@ -103,10 +103,12 @@ if user_email:
     user_data = load_user_data()
 
     # Check if the user already has a saved collection link
-    if user_email in user_data:
-        collection_link = user_data[user_email]
+    collection_link = user_data.get(user_email)
+
+    if collection_link:
         st.write(f"Your saved collection link: {collection_link}")
-        get_collection_data(collection_link)
+        cards = get_pokemon_cards(collection_link)
+        display_cards(cards)
 
         # Add a refresh button at the top
         if st.button('Refresh'):
@@ -117,12 +119,8 @@ if user_email:
         collection_link = st.text_input('Paste your collection link here:')
 
         # Save the collection link when the user clicks the "Save Link" button
-        if st.button('Save Link'):
+        if st.button('Save Link') and collection_link:
             user_data[user_email] = collection_link
             save_user_data(user_data)
             st.success('Collection link saved!')
             st.experimental_rerun()  # Reload the app to display the saved link
-
-def get_collection_data(collection_link):
-    cards = get_pokemon_cards(collection_link)
-    display_cards(cards)
