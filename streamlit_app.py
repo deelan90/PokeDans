@@ -39,6 +39,8 @@ def get_pokemon_cards(collection_link):
         cards = {}
         for offer in table.find_all('tr', class_='offer'):
             try:
+                card_name = None  # Ensure card_name is initialized
+
                 # Card name
                 card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
                 card_name = card_name_element.text.strip() if card_name_element else "Unknown Name"
@@ -124,7 +126,9 @@ if user_email:
 
     if collection_link:
         if st.button('Refresh'):
-            st.experimental_rerun()  # Trigger a rerun of the app after saving the link
-        
+            # Instead of using st.experimental_rerun, reset the app state manually
+            st.experimental_set_query_params(refresh=True)
+            st.experimental_rerun()
+
         cards = get_pokemon_cards(collection_link)
         display_cards(cards)
