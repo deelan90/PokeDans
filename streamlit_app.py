@@ -34,6 +34,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin-bottom: 20px;
 }
 
 .card-image {
@@ -146,7 +147,7 @@ def display_cards(cards):
             with col:
                 st.markdown(f"<div class='card-container'><div class='card-title'>{card['name']}</div>", unsafe_allow_html=True)
                 if card['image']:
-                    st.image(card['image'], caption=f"{card['grading_name']} - {card['name']}", use_column_width=True, class_="card-image")
+                    st.image(card['image'], caption=f"{card['grading_name']} - {card['name']}", use_column_width=True)
                 else:
                     st.write("Image not available")
                 st.write(f"**Value (AUD):** {card['value_aud']}")
