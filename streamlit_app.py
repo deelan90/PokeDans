@@ -10,55 +10,58 @@ def get_pokemon_cards(collection_url):
         soup = BeautifulSoup(response.content, 'html.parser')
 
         table = soup.find('table', id='active')
-        if table:
-            cards = []
-            for offer in table.find_all('tr', class_='offer'):
-                try:
-                    # Card name
-                    card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
-                    card_name = card_name_element.text.strip() if card_name_element else "Unknown Name"
-
-                    # Card value in USD
-                    card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
-                    card_value_usd = card_value_element.text.strip() if card_value_element else "Unknown Value"
-
-                    # Convert the value to AUD (example conversion, update as needed)
-                    conversion_rate = 1.5  # Example conversion rate, update to current rate
-                    card_value_aud = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate:.2f} AUD"
-
-                    # Japanese price placeholder (replace with actual scraping logic if available)
-                    card_value_jpy = f"{float(card_value_usd.replace('$', '').replace(',', '')) * 150:.2f} JPY"
-
-                    # Card link
-                    card_link_element = offer.find('td', class_='photo').find('div').find('a')
-                    card_link = card_link_element.get('href') if card_link_element else None
-
-                    # Grading name
-                    grading_name_element = offer.find_all('td')[2]
-                    grading_name = grading_name_element.text.strip() if grading_name_element else "No Grading"
-
-                    # Fetch the high-resolution image
-                    card_image_url = get_high_res_image(card_link) if card_link else None
-
-                    # Create the card display
-                    card_display = {
-                        'name': card_name,
-                        'grading_name': grading_name,
-                        'value_aud': card_value_aud,
-                        'value_jpy': card_value_jpy,
-                        'image': card_image_url,
-                        'link': f"https://www.pricecharting.com{card_link}" if card_link else None
-                    }
-                    cards.append(card_display)
-
-                except Exception as e:
-                    st.error(f"An unexpected error occurred: {e}")
-                    continue
-
-            return cards
-        else:
+        if not table:
             st.error("Could not find the card data table.")
             return None
+        
+        cards = []
+        for offer in table.find_all('tr', class_='offer'):
+            try:
+                # Card name
+                card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
+                card_name = card_name_element.text.strip() if card_name_element else "Unknown Name"
+
+                # Card value in USD
+                card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
+                card_value_usd = card_value_element.text.strip() if card_value_element else "Unknown Value"
+
+                # Convert the value to AUD and JPY
+                try:
+                    usd_value = float(card_value_usd.replace('$', '').replace(',', ''))
+                    card_value_aud = f"{usd_value * 1.5:.2f} AUD"
+                    card_value_jpy = f"{usd_value * 150:.2f} JPY"
+                except ValueError:
+                    card_value_aud = "Unknown Value"
+                    card_value_jpy = "Unknown Value"
+
+                # Grading name (from the third column)
+                grading_name_element = offer.find_all('td')[2]
+                grading_name = grading_name_element.text.strip() if grading_name_element else "No Grading"
+
+                # Card link
+                card_link_element = offer.find('td', class_='photo').find('div').find('a')
+                card_link = card_link_element.get('href') if card_link_element else None
+
+                # Fetch the high-resolution image
+                card_image_url = get_high_res_image(card_link) if card_link else None
+
+                # Create the card display
+                card_display = {
+                    'name': card_name,
+                    'grading_name': grading_name,
+                    'value_aud': card_value_aud,
+                    'value_jpy': card_value_jpy,
+                    'image': card_image_url,
+                    'link': f"https://www.pricecharting.com{card_link}" if card_link else None
+                }
+                cards.append(card_display)
+
+            except Exception as e:
+                st.error(f"An unexpected error occurred while processing a card: {e}")
+                continue
+
+        return cards
+
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {e}")
         return None
@@ -78,7 +81,6 @@ def get_high_res_image(card_link):
         if card_image_element:
             return card_image_element.get('src')
         else:
-            st.error("Could not find high-resolution image.")
             return None
     except Exception as e:
         st.error(f"Error fetching high-resolution image: {e}")
@@ -114,10 +116,14 @@ def display_cards(cards):
             col = cols[idx % 2]  # Alternate between columns
             with col:
                 st.markdown(f"<div class='card-container'><div class='card-title'>{card['name']}</div>", unsafe_allow_html=True)
-                st.image(card['image'], caption=f"{card['grading_name']} - {card['name']}", use_column_width=True, class_="card-image")
+                if card['image']:
+                    st.image(card['image'], caption=f"{card['grading_name']} - {card['name']}", use_column_width=True, class_="card-image")
+                else:
+                    st.write("Image not available")
                 st.write(f"**Value (AUD):** {card['value_aud']}")
                 st.write(f"**Value (JPY):** {card['value_jpy']}")
-                st.markdown(f"[View on PriceCharting]({card['link']})")
+                if card['link']:
+                    st.markdown(f"[View on PriceCharting]({card['link']})")
                 st.markdown("</div>", unsafe_allow_html=True)
 
 # Streamlit app setup
