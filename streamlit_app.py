@@ -107,24 +107,21 @@ if user_email:
         collection_link = user_data[user_email]
         st.write(f"Your saved collection link: {collection_link}")
         get_collection_data(collection_link)
+
+        # Add a refresh button at the top
+        if st.button('Refresh'):
+            st.experimental_rerun()
+
     else:
         # If no collection link is found, prompt the user to input one
         collection_link = st.text_input('Paste your collection link here:')
 
-    # Save the collection link when the user clicks the "Save Link" button
-    if st.button('Save Link'):
-        user_data[user_email] = collection_link
-        save_user_data(user_data)
-        st.success('Collection link saved!')
-
-    # Add a refresh button
-    if st.button('Refresh'):
-        st.experimental_rerun()
-        if user_email in user_data:
-            collection_link = user_data[user_email]
-            get_collection_data(collection_link)
-        else:
-            st.error("Please save your collection link first.")
+        # Save the collection link when the user clicks the "Save Link" button
+        if st.button('Save Link'):
+            user_data[user_email] = collection_link
+            save_user_data(user_data)
+            st.success('Collection link saved!')
+            st.experimental_rerun()  # Reload the app to display the saved link
 
 def get_collection_data(collection_link):
     cards = get_pokemon_cards(collection_link)
