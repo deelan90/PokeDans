@@ -1,11 +1,58 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
+import json
+import os
 
-st.title("Pokémon Card Tracker")
+# Define the file where user data will be stored
+DATA_FILE = 'user_data.json'
 
-# Define the PriceCharting URL
-priceChartingUrl = 'https://www.pricecharting.com/offers?seller=ym3hqoown5rn5kk7vymq5bjvfq&status=collection'
+# Function to load user data from the JSON file
+def load_user_data():
+    try:
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, 'r') as f:
+                return json.load(f)
+        else:
+            # Handle the case where the file doesn't exist
+            st.error("Error: User data file not found.")
+            return {} 
+    except Exception as e:
+        # Handle any other errors that might occur during loading
+        st.error(f"Error loading user data: {e}")
+        return {}
+
+# Function to save user data to the JSON file
+def save_user_data(data):
+    with open(DATA_FILE, 'w') as f:
+        json.dump(data, f)
+
+# Streamlit app starts here
+st.title('Pokémon Card Tracker')
+
+# Simulate the login process with an email input
+user_email = st.text_input("Enter your email to log in:")
+
+if user_email:
+    st.success(f'Logged in as {user_email}')
+
+    # Load existing user data from the JSON file
+    user_data = load_user_data()
+
+    # Check if the user already has a saved collection link
+    if user_email in user_data:
+        collection_link = user_data[user_email]
+        st.write(f"Your saved collection link: {collection_link}")
+        get_collection_data(collection_link)
+    else:
+        # If no collection link is found, prompt the user to input one
+        collection_link = st.text_input('Paste your collection link here:')
+
+    # Save the collection link when the user clicks the "Save Link" button
+    if st.button('Save Link'):
+        user_data[user_email] = collection_link
+        save_user_data(user_data)
+        st.success('Collection link saved!')
 
 # Function to fetch and extract data from PriceCharting
 def get_pokemon_cards(collection_link):
@@ -33,7 +80,7 @@ def get_pokemon_cards(collection_link):
 
 
                     # Find the card value
-                    card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
+                    card_value_element = offer.find('td', class_='price').find('span', class='js-price')
                     if card_value_element:
                         card_value = card_value_element.text.strip()
                     else:
@@ -160,6 +207,18 @@ if user_email:
         save_user_data(user_data)
         st.success('Collection link saved!')
 
+    # Add a refresh button
+    if st.button('Refresh'):
+        # Clear the existing card display
+        st.experimental_rerun()
+        # Load and display the updated data
+        if user_email in user_data:
+            collection_link = user_data[user_email]
+            get_collection_data(collection_link)
+        else:
+            # If no collection link is found, display an error message
+            st.error("Please save your collection link first.")
+
 
 import json
 import os
@@ -213,3 +272,15 @@ if user_email:
         user_data[user_email] = collection_link
         save_user_data(user_data)
         st.success('Collection link saved!')
+
+    # Add a refresh button
+    if st.button('Refresh'):
+        # Clear the existing card display
+        st.experimental_rerun()
+        # Load and display the updated data
+        if user_email in user_data:
+            collection_link = user_data[user_email]
+            get_collection_data(collection_link)
+        else:
+            # If no collection link is found, display an error message
+            st.error("Please save your collection link first.")
