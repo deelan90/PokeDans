@@ -1,6 +1,59 @@
+import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 import logging
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Custom CSS for Pokémon-style font, title, and Franklin Gothic for body text
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Flexo:wght@700&display=swap');
+
+body {
+    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+}
+
+.pokemon-title {
+    font-family: 'Flexo', sans-serif;
+    font-size: 48px;
+    font-weight: 700;
+    color: #FFCB05;
+    -webkit-text-stroke: 2px #3A5DA8;
+    text-stroke: 2px #3A5DA8;
+    text-shadow: 
+        4px 4px 0 #3A5DA8,
+        -2px -2px 0 #3A5DA8,
+        2px -2px 0 #3A5DA8,
+        -2px 2px 0 #3A5DA8,
+        2px 2px 0 #3A5DA8;
+    letter-spacing: 2px;
+    padding: 20px;
+    text-align: center;
+    background: linear-gradient(to bottom, #3A5DA8 0%, #2A75BB 100%);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.pokemon-font {
+    font-family: 'Flexo', sans-serif;
+    color: #FFCB05;
+    text-shadow: 2px 2px #3A5DA8;
+}
+</style>
+""", unsafe_allow_html=True)
+
+def get_high_res_image(card_url):
+    try:
+        response = requests.get(card_url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+        card_image_element = soup.find('img', class_='product-thumbnail')
+        return card_image_element['src'] if card_image_element else None
+    except Exception as e:
+        logging.error(f"Error fetching high-res image: {e}")
+        return None
 
 def get_pokemon_cards(collection_url):
     try:
@@ -19,7 +72,6 @@ def get_pokemon_cards(collection_url):
                 # Card name
                 card_name_element = offer.find('p', class_='title')
                 if not card_name_element:
-                    logging.warning("Title element not found, skipping this entry")
                     continue
                 card_name = card_name_element.text.strip()
                 
@@ -34,26 +86,15 @@ def get_pokemon_cards(collection_url):
                 # Convert the value to AUD and JPY
                 try:
                     usd_value = float(card_value_usd.replace('$', '').replace(',', ''))
-                    card_value_aud = f"{usd_value * 1.5:.2f} AUD"  # Update conversion rate as needed
-                    card_value_jpy = f"{usd_value * 150:.2f} JPY"  # Update conversion rate as needed
+                    card_value_aud = f"{usd_value * 1.5:.2f} AUD"
+                    card_value_jpy = f"{usd_value * 150:.2f} JPY"
                 except ValueError:
-                    logging.warning(f"Could not convert price for {card_name}")
                     card_value_aud = "Unknown Value"
                     card_value_jpy = "Unknown Value"
                 
-                # Card link and high-resolution image
+                # Card link
                 card_link_element = offer.find('a', class_='item-link')
-                if card_link_element:
-                    card_link = f"https://www.pricecharting.com{card_link_element['href']}"
-                    # Visit the individual card page to get the high-res image
-                    card_page_response = requests.get(card_link)
-                    card_page_response.raise_for_status()
-                    card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
-                    card_image_element = card_page_soup.find('img', class_='product-thumbnail')
-                    card_image_url = card_image_element['src'] if card_image_element else None
-                else:
-                    card_link = None
-                    card_image_url = None
+                card_link = f"https://www.pricecharting.com{card_link_element['href']}" if card_link_element else None
                 
                 # Update or create card entry
                 if card_name in cards:
@@ -64,7 +105,7 @@ def get_pokemon_cards(collection_url):
                     })
                 else:
                     cards[card_name] = {
-                        'image': card_image_url,
+                        'image': None,  # We'll fetch this later
                         'gradings': [{
                             'grading_name': grading_name,
                             'value_aud': card_value_aud,
@@ -89,3 +130,42 @@ def get_pokemon_cards(collection_url):
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e}")
         return None
+
+def display_cards(cards):
+    if cards:
+        cols = st.columns(2)  # Create two columns for the grid layout
+        for idx, (card_name, card) in enumerate(cards.items()):
+            col = cols[idx % 2]  # Alternate between columns
+            with col:
+                st.markdown(f"<h3 class='pokemon-font'>{card_name}</h3>", unsafe_allow_html=True)
+                if card['image']:
+                    st.image(card['image'], caption=card_name, use_column_width=True)
+                else:
+                    st.write("Image not available")
+                for grading in card['gradings']:
+                    st.write(f"**{grading['grading_name']}:** {grading['value_aud']} | {grading['value_jpy']}")
+                if card['link']:
+                    st.markdown(f"[View on PriceCharting]({card['link']})")
+
+# Streamlit app setup
+st.markdown("<h1 class='pokemon-title'>Pokémon Card Tracker</h1>", unsafe_allow_html=True)
+
+# Input for the collection URL
+collection_link = st.text_input("Enter the collection link:")
+if collection_link:
+    st.success(f"Your saved collection link: {collection_link}")
+    cards = get_pokemon_cards(collection_link)
+    if cards:
+        # Fetch high-res images
+        for card_name, card_data in cards.items():
+            if card_data['link']:
+                card_data['image'] = get_high_res_image(card_data['link'])
+        display_cards(cards)
+    else:
+        st.error("No cards found or an error occurred. Please check the logs for more information.")
+else:
+    st.warning("Please enter a collection link to proceed.")
+
+# Hide the input field after submission
+if collection_link:
+    st.text_input("Enter the collection link:", value=collection_link, key="hidden", label_visibility="hidden")
