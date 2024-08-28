@@ -2,6 +2,74 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 
+# Custom CSS for Pokémon-style font and Franklin Gothic for body text
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Flexo:wght@700&display=swap');
+
+body {
+    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+}
+
+.pokemon-title {
+    font-family: 'Flexo', sans-serif;
+    font-size: 48px;
+    font-weight: 700;
+    color: #FFCB05;
+    letter-spacing: 2px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.pokemon-font {
+    font-family: 'Flexo', sans-serif;
+    color: #FFCB05;
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+/* Additional styling for uniform image sizes and title alignment */
+.card-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.card-image {
+    width: 200px;
+    height: 200px;
+    object-fit: cover;
+}
+
+.card-title {
+    text-align: center;
+    font-weight: bold;
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #FFCB05;
+    text-shadow: 2px 2px #3A5DA8;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Function to fetch high-resolution images
+def get_high_res_image(card_link):
+    try:
+        card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
+        card_page_response.raise_for_status()
+        card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
+
+        # Find the highest resolution image available
+        card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
+        if card_image_element:
+            return card_image_element.get('src')
+        else:
+            return None
+    except Exception as e:
+        st.warning(f"Error fetching high-resolution image: {e}")
+        return None
+
 # Function to fetch and extract data from PriceCharting
 def get_pokemon_cards(collection_url):
     try:
@@ -57,7 +125,7 @@ def get_pokemon_cards(collection_url):
                 cards.append(card_display)
 
             except Exception as e:
-                st.error(f"An unexpected error occurred while processing a card: {e}")
+                st.warning(f"An error occurred while processing a card: {e}")
                 continue
 
         return cards
@@ -68,45 +136,6 @@ def get_pokemon_cards(collection_url):
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
         return None
-
-# Function to fetch high-resolution images
-def get_high_res_image(card_link):
-    try:
-        card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
-        card_page_response.raise_for_status()
-        card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
-
-        # Find the highest resolution image available
-        card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
-        if card_image_element:
-            return card_image_element.get('src')
-        else:
-            return None
-    except Exception as e:
-        st.error(f"Error fetching high-resolution image: {e}")
-        return None
-
-# Custom CSS to make images the same size and align titles
-st.markdown("""
-<style>
-    .card-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-    .card-image {
-        width: 200px;
-        height: 200px;
-        object-fit: cover;
-    }
-    .card-title {
-        text-align: center;
-        font-weight: bold;
-        font-size: 20px;
-        margin-bottom: 10px;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # Function to display the cards in Streamlit
 def display_cards(cards):
@@ -127,7 +156,7 @@ def display_cards(cards):
                 st.markdown("</div>", unsafe_allow_html=True)
 
 # Streamlit app setup
-st.title("Pokémon Card Tracker")
+st.markdown("<h1 class='pokemon-title'>Pokémon Card Tracker</h1>", unsafe_allow_html=True)
 
 # Input for the collection URL
 collection_link = st.text_input("Enter the collection link:")
