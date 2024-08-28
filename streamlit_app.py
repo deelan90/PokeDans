@@ -35,7 +35,7 @@ def get_pokemon_cards(collection_url):
                     card_value_jpy = "Unknown Value"
 
                 # Grading name (from the third column)
-                grading_name_element = offer.find_all('td')[2]
+                grading_name_element = offer.find_all('td')[2] if len(offer.find_all('td')) > 2 else None
                 grading_name = grading_name_element.text.strip() if grading_name_element else "No Grading"
 
                 # Card link
