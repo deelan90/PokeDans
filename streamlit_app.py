@@ -30,8 +30,11 @@ if 'collection_link' in st.session_state:
 
                 for offer in table.find_all('tr', class_='offer'):
                     try:
+                        # Initialize card_name to prevent the error
+                        card_name = "Unknown Name"
+
                         card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
-                        card_name = card_name_element.text.strip() if card_name_element else "Unknown Name"
+                        card_name = card_name_element.text.strip() if card_name_element else card_name
 
                         card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                         card_value = card_value_element.text.strip() if card_value_element else "Unknown Value"
