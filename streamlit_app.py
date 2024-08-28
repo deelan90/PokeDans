@@ -14,7 +14,7 @@ def load_user_data():
             with open(DATA_FILE, 'r') as f:
                 return json.load(f)
         else:
-            return {} 
+            return {}
     except Exception as e:
         st.error(f"Error loading user data: {e}")
         return {}
@@ -25,6 +25,7 @@ def save_user_data(data):
         json.dump(data, f)
 
 # Function to fetch and extract data from PriceCharting
+@st.cache_data
 def get_pokemon_cards(collection_link):
     try:
         response = requests.get(collection_link)
@@ -126,9 +127,11 @@ if user_email:
 
     if collection_link:
         if st.button('Refresh'):
-            # Instead of using st.experimental_rerun, reset the app state manually
-            st.experimental_set_query_params(refresh=True)
-            st.experimental_rerun()
-
-        cards = get_pokemon_cards(collection_link)
-        display_cards(cards)
+            # Clear the cached data when refresh is clicked
+            get_pokemon_cards.clear()
+            cards = get_pokemon_cards(collection_link)
+            display_cards(cards)
+        else:
+            # Display cards without refreshing the cache
+            cards = get_pokemon_cards(collection_link)
+            display_cards(cards)
