@@ -172,4 +172,3 @@ else:
 # Hide the input field after submission
 if collection_link:
     st.text_input("Enter the collection link:", value=collection_link, key="hidden", label_visibility="hidden")
- 
