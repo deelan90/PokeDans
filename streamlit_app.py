@@ -37,11 +37,15 @@ if 'collection_link' in st.session_state:
                         card_name = card_name_element.text.strip() if card_name_element else card_name
 
                         card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
-                        card_value = card_value_element.text.strip() if card_value_element else "Unknown Value"
+                        card_value = card_value_element.text.strip() if card_value_element else "0"
 
-                        card_currency = "AUD" if "AU$" in card_value else "JPY" if "¥" in card_value else ""
+                        # Remove any dollar or yen symbols and commas
+                        card_value = card_value.replace("AU$", "").replace("¥", "").replace("$", "").replace(",", "").strip()
 
-                        card_value = float(card_value.replace("AU$", "").replace("¥", "").replace(",", "").strip())
+                        # Convert the cleaned value to a float
+                        card_value = float(card_value)
+
+                        card_currency = "AUD" if "AU$" in card_value_element.text else "JPY" if "¥" in card_value_element.text else "USD"
 
                         card_link_element = offer.find('td', class_='photo').find('div').find('a')
                         card_link = card_link_element.get('href') if card_link_element else None
@@ -62,6 +66,8 @@ if 'collection_link' in st.session_state:
                                 cards[card_name]["AUD"] += card_value
                             elif card_currency == "JPY":
                                 cards[card_name]["JPY"] += card_value
+                            elif card_currency == "USD":
+                                cards[card_name]["USD"] += card_value
 
                     except Exception as e:
                         st.error(f"An unexpected error occurred while processing {card_name}: {e}")
@@ -88,7 +94,7 @@ if 'collection_link' in st.session_state:
                         f"""
                         <img src="{details['image']}" alt="{card_name}" style="width: 200px; height: auto;">
                         <p><strong>{card_name}</strong></p>
-                        <p><strong>Price:</strong> ${details['AUD']:.2f} / ¥{details['JPY']:.0f}</p>
+                        <p><strong>Price:</strong> AU${details['AUD']:.2f} / ¥{details['JPY']:.0f} / ${details['USD']:.2f}</p>
                         """,
                         unsafe_allow_html=True
                     )
