@@ -28,7 +28,7 @@ def save_user_data(data):
 def get_pokemon_cards(collection_link):
     try:
         response = requests.get(collection_link)
-        response.raise_for_status()
+        response.raise_for_status()  # Raise an exception for bad responses
         soup = BeautifulSoup(response.content, 'html.parser')
 
         table = soup.find('table', id='active')
@@ -37,25 +37,27 @@ def get_pokemon_cards(collection_link):
             cards = []
             for offer in table.find_all('tr', class_='offer'):
                 try:
+                    # Find the card name
                     card_name_element = offer.find('td', class_='meta')
-                    card_name = card_name_element.find('p', class_='title').text.strip() if card_name_element else "Unknown Card"
+                    if card_name_element:
+                        title_element = card_name_element.find('p', class_='title')
+                        card_name = title_element.text.strip() if title_element else "Unknown Card"
+                    else:
+                        continue  # Skip if card name not found
 
+                    # Find the card value
                     card_value_element = offer.find('td', class_='price')
                     card_value = card_value_element.find('span', class_='js-price').text.strip() if card_value_element else "Unknown Value"
 
+                    # Find the card link
                     card_link_element = offer.find('td', class_='photo')
                     card_link = card_link_element.find('a')['href'] if card_link_element and card_link_element.find('a') else "#"
 
-                    # Fetch higher-resolution image from individual card page
-                    if card_link != "#":
-                        card_response = requests.get(card_link)
-                        card_response.raise_for_status()
-                        card_soup = BeautifulSoup(card_response.content, 'html.parser')
-                        image_element = card_soup.find('img', class_='js-lightbox-content')
-                        card_image_url = image_element['src'] if image_element else "/api/placeholder/200/300"
-                    else:
-                        card_image_url = "/api/placeholder/200/300"
+                    # Find the card image
+                    card_image_element = card_link_element.find('img') if card_link_element else None
+                    card_image_url = card_image_element['src'] if card_image_element else "/api/placeholder/200/300"
 
+                    # Build the card display with a pop-up link
                     card_display = f"""
                     <a href="{card_link}" target="_blank">
                         <img src="{card_image_url}" alt="{card_name}" style="width: 200px; height: auto;">
@@ -67,7 +69,7 @@ def get_pokemon_cards(collection_link):
                     cards.append(card_display)
                 except Exception as e:
                     st.error(f"Error processing card: {str(e)}")
-                    continue
+                    continue  # Move on to the next offer
 
             return cards
         else:
@@ -80,7 +82,7 @@ def get_pokemon_cards(collection_link):
         st.error(f"An unexpected error occurred: {e}")
         return None
 
-# Function to display the cards
+# Fetch and display the data
 def display_cards(cards):
     if cards:
         for card in cards:
@@ -101,27 +103,29 @@ if user_email:
     user_data = load_user_data()
 
     # Check if the user already has a saved collection link
-    collection_link = user_data.get(user_email)
-
-    if collection_link:
+    if user_email in user_data:
+        collection_link = user_data[user_email]
         st.write(f"Your saved collection link: {collection_link}")
-
-        # Refresh button at the top
-        if st.button('Refresh'):
-            st.experimental_rerun()
-
-        # Display cards
-        cards = get_pokemon_cards(collection_link)
-        display_cards(cards)
+        get_collection_data(collection_link)
     else:
         # If no collection link is found, prompt the user to input one
         collection_link = st.text_input('Paste your collection link here:')
 
-        # Save the collection link when the user clicks the "Save Link" button
-        if st.button('Save Link') and collection_link:
-            user_data[user_email] = collection_link
-            save_user_data(user_data)
-            st.success('Collection link saved!')
+    # Save the collection link when the user clicks the "Save Link" button
+    if st.button('Save Link'):
+        user_data[user_email] = collection_link
+        save_user_data(user_data)
+        st.success('Collection link saved!')
 
-            # Automatically refresh the app to display the saved link and hide the input
-            st.experimental_rerun()
+    # Add a refresh button
+    if st.button('Refresh'):
+        st.experimental_rerun()
+        if user_email in user_data:
+            collection_link = user_data[user_email]
+            get_collection_data(collection_link)
+        else:
+            st.error("Please save your collection link first.")
+
+def get_collection_data(collection_link):
+    cards = get_pokemon_cards(collection_link)
+    display_cards(cards)
