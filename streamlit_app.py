@@ -22,6 +22,7 @@ def get_pokemon_cards():
             cards = []
             for offer in table.find_all('tr', class_='offer'):
                 try:
+                    # Try to find the elements using a more flexible approach
                     card_name = offer.find('td', class_='meta').find('p', class_='title').find('a').text
                     card_value = offer.find('td', class_='price').find('span', class_='js-price').text
                     card_image_url = offer.find('td', class_='photo').find('div').find('a').find('img').get('src')
@@ -31,7 +32,11 @@ def get_pokemon_cards():
                     card_response = requests.get(f"https://www.pricecharting.com{card_link}")
                     card_response.raise_for_status()
                     card_soup = BeautifulSoup(card_response.content, 'html.parser')
-                    card_image = card_soup.find('img', class_='card-image').get('src')
+                    try:
+                        card_image = card_soup.find('img', class_='card-image').get('src')
+                    except AttributeError:
+                        # If 'card-image' class is not found, try another approach
+                        card_image = card_soup.find('img', class_='image-rotate-canvas').get('src') 
 
                     # Build the card display with a pop-up link
                     card_display = f"""
