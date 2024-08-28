@@ -169,10 +169,17 @@ DATA_FILE = 'user_data.json'
 
 # Function to load user data from the JSON file
 def load_user_data():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
-    else:
+    try:
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, 'r') as f:
+                return json.load(f)
+        else:
+            # Handle the case where the file doesn't exist
+            st.error("Error: User data file not found.")
+            return {} 
+    except Exception as e:
+        # Handle any other errors that might occur during loading
+        st.error(f"Error loading user data: {e}")
         return {}
 
 # Function to save user data to the JSON file
