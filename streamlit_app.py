@@ -7,9 +7,6 @@ import os
 # Define the file where user data will be stored
 DATA_FILE = 'user_data.json'
 
-# Base URL for PriceCharting
-BASE_URL = "https://www.pricecharting.com"
-
 # Function to load user data from the JSON file
 def load_user_data():
     try:
@@ -28,50 +25,61 @@ def save_user_data(data):
         json.dump(data, f)
 
 # Function to fetch and extract data from PriceCharting
-def get_collection_data(collection_link):
+def get_pokemon_cards(collection_link):
     try:
         response = requests.get(collection_link)
-        response.raise_for_status()
+        response.raise_for_status()  # Raise an exception for bad responses
         soup = BeautifulSoup(response.content, 'html.parser')
 
+        # Extract only the relevant part of the HTML
         table = soup.find('table', id='active')
 
         if table:
             cards = []
             for offer in table.find_all('tr', class_='offer'):
                 try:
-                    card_name_element = offer.find('td', class_='meta')
-                    card_name = card_name_element.find('p', class_='title').text.strip() if card_name_element else "Unknown Card"
+                    # Find the card name
+                    card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
+                    card_name = card_name_element.text.strip() if card_name_element else "Unknown Name"
 
-                    card_value_element = offer.find('td', class_='price')
-                    card_value = card_value_element.find('span', class_='js-price').text.strip() if card_value_element else "Unknown Value"
+                    # Find the card value
+                    card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
+                    card_value = card_value_element.text.strip() if card_value_element else "Unknown Value"
 
-                    card_link_element = offer.find('td', class_='photo')
-                    card_link = card_link_element.find('a')['href'] if card_link_element and card_link_element.find('a') else "#"
+                    # Find the card link
+                    card_link_element = offer.find('td', class_='photo').find('div').find('a')
+                    card_link = card_link_element.get('href') if card_link_element else None
 
-                    # Handle relative URLs by appending the base URL
-                    if card_link != "#":
-                        card_link = BASE_URL + card_link
-                        card_response = requests.get(card_link)
-                        card_response.raise_for_status()
-                        card_soup = BeautifulSoup(card_response.content, 'html.parser')
-                        image_element = card_soup.find('img', class_='js-lightbox-content')
-                        card_image_url = image_element['src'] if image_element else "/api/placeholder/200/300"
+                    if card_link:
+                        # Fetch the image from the individual card page
+                        card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
+                        card_page_response.raise_for_status()
+                        card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
+
+                        # Look for images with 'jpeg', 'jpg', or 'JPEG' in the src attribute
+                        card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
+                        card_image_url = card_image_element.get('src') if card_image_element else None
+
+                        if not card_image_url:
+                            # Fallback to low-res image
+                            card_image_url = offer.find('td', class_='photo').find('div').find('a').find('img').get('src')
+
+                        # Build the card display with a pop-up link
+                        card_display = f"""
+                        <a href="https://www.pricecharting.com{card_link}" target="_blank">
+                            <img src="{card_image_url}" alt="{card_name}" style="width: 200px; height: auto;">
+                        </a>
+                        <p><strong>Card Name:</strong> {card_name}</p>
+                        <p><strong>Value:</strong> {card_value}</p>
+                        """
+                        cards.append(card_display)
                     else:
-                        card_image_url = "/api/placeholder/200/300"
+                        st.error(f"Could not find card link for {card_name}.")
+                        continue  # Skip if link is not found
 
-                    card_display = f"""
-                    <a href="{card_link}" target="_blank">
-                        <img src="{card_image_url}" alt="{card_name}" style="width: 200px; height: auto;">
-                    </a>
-                    <p><strong>Card Name:</strong> {card_name}</p>
-                    <p><strong>Value:</strong> {card_value}</p>
-                    """
-
-                    cards.append(card_display)
                 except Exception as e:
-                    st.error(f"Error processing card: {str(e)}")
-                    continue
+                    st.error(f"An unexpected error occurred: {e}")
+                    continue  # Skip the current offer and continue
 
             return cards
         else:
@@ -89,8 +97,6 @@ def display_cards(cards):
     if cards:
         for card in cards:
             st.markdown(card, unsafe_allow_html=True)
-    else:
-        st.warning("No cards found or there was an error retrieving the cards.")
 
 # Streamlit app starts here
 st.title('Pokémon Card Tracker')
@@ -115,7 +121,7 @@ if user_email:
             st.experimental_rerun()
 
         # Display cards
-        cards = get_collection_data(collection_link)
+        cards = get_pokemon_cards(collection_link)
         display_cards(cards)
     else:
         # If no collection link is found, prompt the user to input one
