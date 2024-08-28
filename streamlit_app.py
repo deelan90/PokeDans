@@ -28,6 +28,7 @@ def get_pokemon_cards():
                         card_name = card_name_element.text
                     else:
                         st.error(f"Could not find card name for this offer.")
+                        st.write(f"HTML for the current offer:\n{offer.prettify()}")
                         continue  # Move on to the next offer
 
 
@@ -37,6 +38,7 @@ def get_pokemon_cards():
                         card_value = card_value_element.text
                     else:
                         st.error(f"Could not find card value for this offer.")
+                        st.write(f"HTML for the current offer:\n{offer.prettify()}")
                         continue  # Move on to the next offer
 
 
@@ -46,6 +48,7 @@ def get_pokemon_cards():
                         card_link = card_link_element.get('href')
                     else:
                         st.error(f"Could not find card link for this offer.")
+                        st.write(f"HTML for the current offer:\n{offer.prettify()}")
                         continue  # Move on to the next offer
 
 
@@ -55,37 +58,53 @@ def get_pokemon_cards():
                         card_image_url = card_image_url_element.get('src')
                     else:
                         st.error(f"Could not find card image URL for this offer.")
+                        st.write(f"HTML for the current offer:\n{offer.prettify()}")
                         continue  # Move on to the next offer
 
 
                     # Fetch the image from the individual card page
-                    card_response = requests.get(f"https://www.pricecharting.com{card_link}")
-                    card_response.raise_for_status()
-                    card_soup = BeautifulSoup(card_response.content, 'html.parser')
+                    try:
+                        card_response = requests.get(f"https://www.pricecharting.com{card_link}")
+                        card_response.raise_for_status()
+                        card_soup = BeautifulSoup(card_response.content, 'html.parser')
 
-                    # Find the image tag by a more robust selector
-                    card_image = card_soup.find('img', {'class': 'card-image'})
-                    if card_image:
-                        card_image = card_image.get('src')
-                    else:
-                        # Try a different selector for the image tag
+                        # Find the image tag by a more robust selector
                         card_image = card_soup.find('img', {'class': 'card-image'})
                         if card_image:
                             card_image = card_image.get('src')
                         else:
-                            st.error(f"Could not find the image tag for {card_name}")
-                            continue  # Move on to the next offer
+                            # Try a different selector for the image tag
+                            card_image = card_soup.find('img', {'class': 'card-image'})
+                            if card_image:
+                                card_image = card_image.get('src')
+                            else:
+                                # Try to find the image by ID
+                                card_image = card_soup.find('img', id='card_image')
+                                if card_image:
+                                    card_image = card_image.get('src')
+                                else:
+                                    st.error(f"Could not find the image tag for {card_name}")
+                                    st.write(f"HTML for the current card page:\n{card_soup.prettify()}")
+                                    continue  # Move on to the next offer
 
-                    # Build the card display with a pop-up link
-                    card_display = f"""
-                    <a href="{card_link}" target="_blank">
-                        <img src="{card_image}" alt="{card_name}" style="width: 200px; height: auto;">
-                    </a>
-                    <p>**Card Name:** {card_name}</p>
-                    <p>**Value:** {card_value}</p>
-                    """
+                        # Build the card display with a pop-up link
+                        card_display = f"""
+                        <a href="{card_link}" target="_blank">
+                            <img src="{card_image}" alt="{card_name}" style="width: 200px; height: auto;">
+                        </a>
+                        <p>**Card Name:** {card_name}</p>
+                        <p>**Value:** {card_value}</p>
+                        """
 
-                    cards.append(card_display)
+                        cards.append(card_display)
+                    except requests.exceptions.RequestException as e:
+                        st.error(f"Error fetching data from card page: {e}")
+                        st.write(f"HTML for the current card page:\n{card_soup.prettify()}")
+                        continue  # Move on to the next offer
+                    except Exception as e:
+                        st.error(f"An unexpected error occurred: {e}")
+                        return None
+
                 except AttributeError as e:
                     st.error(f"Error extracting data: {e}")
                     # Print the HTML for the current offer to help with debugging
