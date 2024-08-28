@@ -31,14 +31,19 @@ def get_pokemon_cards():
                     card_response = requests.get(f"https://www.pricecharting.com{card_link}")
                     card_response.raise_for_status()
                     card_soup = BeautifulSoup(card_response.content, 'html.parser')
-                    
+
                     # Find the image tag by a more robust selector
                     card_image = card_soup.find('img', {'class': 'card-image'})
                     if card_image:
                         card_image = card_image.get('src')
                     else:
-                        st.error(f"Could not find the image tag for {card_name}")
-                        continue  # Move on to the next offer
+                        # Try a different selector for the image tag
+                        card_image = card_soup.find('img', {'class': 'card-image'})
+                        if card_image:
+                            card_image = card_image.get('src')
+                        else:
+                            st.error(f"Could not find the image tag for {card_name}")
+                            continue  # Move on to the next offer
 
                     # Build the card display with a pop-up link
                     card_display = f"""
