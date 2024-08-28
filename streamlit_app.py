@@ -27,34 +27,28 @@ def get_pokemon_cards():
                     card_image_url = offer.find('td', class_='photo').find('div').find('a').find('img').get('src')
                     card_link = offer.find('td', class_='photo').find('div').find('a').get('href')
 
-                    # Fetch the image from the individual card page
-                    card_response = requests.get(f"https://www.pricecharting.com{card_link}")
-                    card_response.raise_for_status()
-                    card_soup = BeautifulSoup(card_response.content, 'html.parser')
-
-                    # Find the image tag by a more robust selector
-                    card_image = card_soup.find('img', {'class': 'card-image'})
-                    if card_image:
-                        card_image = card_image.get('src')
-                    else:
-                        # Try a different selector for the image tag
-                        card_image = card_soup.find('img', {'class': 'card-image'})
-                        if card_image:
-                            card_image = card_image.get('src')
-                        else:
-                            st.error(f"Could not find the image tag for {card_name}")
-                            continue  # Move on to the next offer
-
-                    # Build the card display with a pop-up link
-                    card_display = f"""
-                    <a href="{card_link}" target="_blank">
-                        <img src="{card_image}" alt="{card_name}" style="width: 200px; height: auto;">
-                    </a>
-                    <p>**Card Name:** {card_name}</p>
-                    <p>**Value:** {card_value}</p>
+                    # Create a table to display the card information
+                    card_table = f"""
+                    <table style="width:100%">
+                        <tr>
+                            <td>**Card Name:**</td>
+                            <td>{card_name}</td>
+                        </tr>
+                        <tr>
+                            <td>**Value:**</td>
+                            <td>{card_value}</td>
+                        </tr>
+                        <tr>
+                            <td>**Image URL:**</td>
+                            <td>{card_image_url}</td>
+                        </tr>
+                        <tr>
+                            <td>**Card Link:**</td>
+                            <td>{card_link}</td>
+                        </tr>
+                    </table>
                     """
-
-                    cards.append(card_display)
+                    cards.append(card_table)
                 except AttributeError as e:
                     st.error(f"Error extracting data: {e}")
                     # Print the HTML for the current offer to help with debugging
