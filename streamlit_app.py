@@ -54,6 +54,19 @@ if user_email:
         save_user_data(user_data)
         st.success('Collection link saved!')
 
+    # Add a refresh button
+    if st.button('Refresh'):
+        # Clear the existing card display
+        st.experimental_rerun()
+        # Load and display the updated data
+        if user_email in user_data:
+            collection_link = user_data[user_email]
+            get_collection_data(collection_link)
+        else:
+            # If no collection link is found, display an error message
+            st.error("Please save your collection link first.")
+
+
 # Function to fetch and extract data from PriceCharting
 def get_pokemon_cards(collection_link):
     try:
