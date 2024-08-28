@@ -14,36 +14,42 @@ def get_pokemon_cards():
         response.raise_for_status()  # Raise an exception for bad responses
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        st.write(f"Fetched HTML:\n{soup.prettify()}")  # Debug: Print the fetched HTML
+        # Extract only the relevant part of the HTML
+        # Get the table with the card data
+        table = soup.find('table', id='active')
 
-        cards = []
-        for offer in soup.find_all('tr', class_='offer'):
-            try:
-                card_name = offer.find('td', class_='meta').find('p', class_='title').find('a').text
-                card_value = offer.find('td', class_='price').find('span', class_='js-price').text
-                card_image = offer.find('td', class_='photo').find('div').find('a').find('img').get('src')
-                
-                # Debug: Print the extracted data
-                st.write(f"Extracted data for card:")
-                st.write(f"  - Name: {card_name}")
-                st.write(f"  - Value: {card_value}")
-                st.write(f"  - Image: {card_image}")
+        if table:
+            cards = []
+            for offer in table.find_all('tr', class_='offer'):
+                try:
+                    card_name = offer.find('td', class_='meta').find('p', class_='title').find('a').text
+                    card_value = offer.find('td', class_='price').find('span', class_='js-price').text
+                    card_image = offer.find('td', class_='photo').find('div').find('a').find('img').get('src')
+                    
+                    # Debug: Print the extracted data
+                    st.write(f"Extracted data for card:")
+                    st.write(f"  - Name: {card_name}")
+                    st.write(f"  - Value: {card_value}")
+                    st.write(f"  - Image: {card_image}")
 
-                cards.append({
-                    'name': card_name,
-                    'value': card_value,
-                    'image': card_image
-                })
-            except AttributeError as e:
-                st.error(f"Error extracting data: {e}")
-                # Print the HTML for the current offer to help with debugging
-                st.write(f"HTML for the current offer:\n{offer.prettify()}")
-                continue  # Move on to the next offer
-            except Exception as e:
-                st.error(f"An unexpected error occurred: {e}")
-                return None
+                    cards.append({
+                        'name': card_name,
+                        'value': card_value,
+                        'image': card_image
+                    })
+                except AttributeError as e:
+                    st.error(f"Error extracting data: {e}")
+                    # Print the HTML for the current offer to help with debugging
+                    st.write(f"HTML for the current offer:\n{offer.prettify()}")
+                    continue  # Move on to the next offer
+                except Exception as e:
+                    st.error(f"An unexpected error occurred: {e}")
+                    return None
 
-        return cards
+            return cards
+        else:
+            st.error("Could not find the card data table.")
+            return None
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {e}")
         return None
