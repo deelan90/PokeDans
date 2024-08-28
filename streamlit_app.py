@@ -39,8 +39,8 @@ def get_pokemon_cards():
                         card_page_response.raise_for_status()
                         card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
 
-                        # Attempt to find the high-res image
-                        card_image_element = card_page_soup.find('img', {'class': 'card-image'})
+                        # Look for images with 'jpeg', 'jpg', or 'JPEG' in the src attribute
+                        card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
                         card_image_url = card_image_element.get('src') if card_image_element else None
 
                         if not card_image_url:
