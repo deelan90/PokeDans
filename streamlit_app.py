@@ -22,32 +22,47 @@ def get_pokemon_cards():
             cards = []
             for offer in table.find_all('tr', class_='offer'):
                 try:
-                    # Extract card details
-                    card_name = offer.find('td', class_='meta').find('p', class_='title').find('a').text.strip()
-                    card_value = offer.find('td', class_='price').find('span', class_='js-price').text.strip()
-                    card_image_url = offer.find('td', class_='photo').find('div').find('a').find('img').get('src')
-                    card_link = offer.find('td', class_='photo').find('div').find('a').get('href')
+                    # Extract card details with checks
+                    card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
+                    card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
+                    card_image_element = offer.find('td', class_='photo').find('div').find('a').find('img')
+                    card_link_element = offer.find('td', class_='photo').find('div').find('a')
 
-                    # Fetch the image from the individual card page
-                    card_response = requests.get(f"https://www.pricecharting.com{card_link}")
-                    card_response.raise_for_status()
-                    card_soup = BeautifulSoup(card_response.content, 'html.parser')
-                    try:
-                        card_image = card_soup.find('img', class_='card-image').get('src')
-                    except AttributeError:
-                        # If 'card-image' class is not found, try another approach
-                        card_image = card_soup.find('img', class_='image-rotate-canvas').get('src')
+                    if card_name_element and card_value_element and card_image_element and card_link_element:
+                        card_name = card_name_element.text.strip()
+                        card_value = card_value_element.text.strip()
+                        card_image_url = card_image_element.get('src')
+                        card_link = card_link_element.get('href')
 
-                    # Build the card display with a pop-up link
-                    card_display = f"""
-                    <a href="{card_link}" target="_blank">
-                        <img src="{card_image}" alt="{card_name}" style="width: 200px; height: auto;">
-                    </a>
-                    <p><strong>Card Name:</strong> {card_name}</p>
-                    <p><strong>Value:</strong> {card_value}</p>
-                    """
+                        # Fetch the image from the individual card page
+                        card_response = requests.get(f"https://www.pricecharting.com{card_link}")
+                        card_response.raise_for_status()
+                        card_soup = BeautifulSoup(card_response.content, 'html.parser')
+                        
+                        # Attempt to get the higher resolution image
+                        card_image_high_res = card_soup.find('img', class_='card-image')
+                        if not card_image_high_res:
+                            card_image_high_res = card_soup.find('img', class_='image-rotate-canvas')
+                        
+                        if card_image_high_res:
+                            card_image = card_image_high_res.get('src')
+                        else:
+                            card_image = card_image_url  # Fall back to the low-res image
 
-                    cards.append(card_display)
+                        # Build the card display with a pop-up link
+                        card_display = f"""
+                        <a href="{card_link}" target="_blank">
+                            <img src="{card_image}" alt="{card_name}" style="width: 200px; height: auto;">
+                        </a>
+                        <p><strong>Card Name:</strong> {card_name}</p>
+                        <p><strong>Value:</strong> {card_value}</p>
+                        """
+
+                        cards.append(card_display)
+                    else:
+                        st.error("One or more elements were not found for this offer.")
+                        st.write(f"HTML for the current offer:\n{offer.prettify()}")
+
                 except AttributeError as e:
                     st.error(f"Error extracting data: {e}")
                     # Print the HTML for the current offer to help with debugging
