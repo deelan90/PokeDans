@@ -25,7 +25,7 @@ def get_pokemon_cards():
                     # Find the card name
                     card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
                     if card_name_element:
-                        card_name = card_name_element.text
+                        card_name = card_name_element.text.strip()
                     else:
                         st.error(f"Could not find card name for this offer.")
                         continue  # Move on to the next offer
@@ -33,7 +33,7 @@ def get_pokemon_cards():
                     # Find the card value
                     card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                     if card_value_element:
-                        card_value = card_value_element.text
+                        card_value = card_value_element.text.strip()
                     else:
                         st.error(f"Could not find card value for this offer.")
                         continue  # Move on to the next offer
@@ -44,4 +44,59 @@ def get_pokemon_cards():
                         card_link = card_link_element.get('href')
                     else:
                         st.error(f"Could not find card link for this offer.")
-                        continue  # Move on to the
+                        continue  # Move on to the next offer
+
+                    # Fetch the image from the individual card page
+                    try:
+                        card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
+                        card_page_response.raise_for_status()
+                        card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
+
+                        # Attempt to find the high-res image
+                        card_image_element = card_page_soup.find('img', {'class': 'card-image'})
+                        if card_image_element:
+                            card_image_url = card_image_element.get('src')
+                        else:
+                            # Fallback to low-res image
+                            card_image_url = offer.find('td', class_='photo').find('div').find('a').find('img').get('src')
+
+                        # Build the card display with a pop-up link
+                        card_display = f"""
+                        <a href="{card_link}" target="_blank">
+                            <img src="{card_image_url}" alt="{card_name}" style="width: 200px; height: auto;">
+                        </a>
+                        <p><strong>Card Name:</strong> {card_name}</p>
+                        <p><strong>Value:</strong> {card_value}</p>
+                        """
+
+                        cards.append(card_display)
+                    except requests.exceptions.RequestException as e:
+                        st.error(f"Error fetching data from card page: {e}")
+                        continue  # Move on to the next offer
+
+                except Exception as e:
+                    st.error(f"An unexpected error occurred: {e}")
+                    continue  # Move on to the next offer
+
+            return cards
+        else:
+            st.error("Could not find the card data table.")
+            return None
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching data: {e}")
+        return None
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
+        return None
+
+# Fetch and display the data
+def display_cards(cards):
+    if cards:
+        for card in cards:
+            st.markdown(card, unsafe_allow_html=True)
+
+# Get the Pokémon card data
+cards = get_pokemon_cards()
+
+# Display the cards
+display_cards(cards)
