@@ -83,7 +83,7 @@ def get_pokemon_cards(collection_url):
             st.error("Could not find the card data table.")
             return None
         
-        cards = []
+        cards = {}
         for offer in table.find_all('tr', class_='offer'):
             try:
                 # Card name
@@ -114,16 +114,25 @@ def get_pokemon_cards(collection_url):
                 # Fetch the high-resolution image
                 card_image_url = get_high_res_image(card_link) if card_link else None
 
-                # Create the card display
-                card_display = {
-                    'name': card_name,
-                    'grading_name': grading_name,
-                    'value_aud': card_value_aud,
-                    'value_jpy': card_value_jpy,
-                    'image': card_image_url,
-                    'link': f"https://www.pricecharting.com{card_link}" if card_link else None
-                }
-                cards.append(card_display)
+                # Check if card already exists in the dictionary
+                if card_name in cards:
+                    # Append the new grading and its values
+                    cards[card_name]['gradings'].append({
+                        'grading_name': grading_name,
+                        'value_aud': card_value_aud,
+                        'value_jpy': card_value_jpy,
+                    })
+                else:
+                    # Create a new card entry
+                    cards[card_name] = {
+                        'image': card_image_url,
+                        'link': f"https://www.pricecharting.com{card_link}" if card_link else None,
+                        'gradings': [{
+                            'grading_name': grading_name,
+                            'value_aud': card_value_aud,
+                            'value_jpy': card_value_jpy,
+                        }]
+                    }
 
             except Exception as e:
                 st.warning(f"An error occurred while processing a card: {e}")
@@ -142,18 +151,18 @@ def get_pokemon_cards(collection_url):
 def display_cards(cards):
     if cards:
         cols = st.columns(2)  # Create two columns for the grid layout
-        for idx, card in enumerate(cards):
+        for idx, (card_name, card_data) in enumerate(cards.items()):
             col = cols[idx % 2]  # Alternate between columns
             with col:
-                st.markdown(f"<div class='card-container'><div class='card-title'>{card['name']}</div>", unsafe_allow_html=True)
-                if card['image']:
-                    st.image(card['image'], caption=f"{card['grading_name']} - {card['name']}", use_column_width=True)
+                st.markdown(f"<div class='card-container'><div class='card-title'>{card_name}</div>", unsafe_allow_html=True)
+                if card_data['image']:
+                    st.image(card_data['image'], caption=card_name, use_column_width=True)
                 else:
                     st.write("Image not available")
-                st.write(f"**Value (AUD):** {card['value_aud']}")
-                st.write(f"**Value (JPY):** {card['value_jpy']}")
-                if card['link']:
-                    st.markdown(f"[View on PriceCharting]({card['link']})")
+                for grading in card_data['gradings']:
+                    st.write(f"**{grading['grading_name']}**: {grading['value_aud']} | {grading['value_jpy']}")
+                if card_data['link']:
+                    st.markdown(f"[View on PriceCharting]({card_data['link']})")
                 st.markdown("</div>", unsafe_allow_html=True)
 
 # Streamlit app setup
