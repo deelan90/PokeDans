@@ -45,4 +45,4 @@ def display_cards(cards):
 cards = get_pokemon_cards()
 
 # Display the cards
-display_cards(cards)
+display_cards(cards) 
