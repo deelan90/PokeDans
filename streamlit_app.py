@@ -25,7 +25,7 @@ def get_pokemon_cards(collection_link):
                     # Find the card name
                     card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
                     if card_name_element:
-                        card_name = card_name_element.text
+                        card_name = card_name_element.text.strip()
                     else:
                         st.error(f"Could not find card name for this offer.")
                         st.write(f"HTML for the current offer:\n{offer.prettify()}")
@@ -33,9 +33,9 @@ def get_pokemon_cards(collection_link):
 
 
                     # Find the card value
-                    card_value_element = offer.find('td', class_='price').find('span', class='js-price')
+                    card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                     if card_value_element:
-                        card_value = card_value_element.text
+                        card_value = card_value_element.text.strip()
                     else:
                         st.error(f"Could not find card value for this offer.")
                         st.write(f"HTML for the current offer:\n{offer.prettify()}")
