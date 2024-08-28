@@ -38,19 +38,19 @@ body {
 # Function to fetch high-resolution images
 def get_high_res_image(card_link):
     try:
-        card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
+        card_page_response = requests.get(card_link)
         card_page_response.raise_for_status()
-        card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
+        soup = BeautifulSoup(card_page_response.content, 'html.parser')
 
-        # Find the highest resolution image available
-        card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
+        # Attempt to locate the card image with a more general selector
+        card_image_element = soup.find('img', {'src': lambda x: x and ('image' in x.lower() and ('jpeg' in x.lower() or 'jpg' in x.lower()))})
         if card_image_element:
             return card_image_element.get('src')
         else:
-            st.error("Could not find high-resolution image.")
+            logging.error("Could not find a high-resolution image.")
             return None
     except Exception as e:
-        st.error(f"Error fetching high-resolution image: {e}")
+        logging.error(f"Error fetching high-resolution image: {e}")
         return None
 
 # Function to fetch and extract data from PriceCharting
