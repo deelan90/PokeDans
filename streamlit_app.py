@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-from collections import defaultdict
 
 # Function to fetch and extract data from PriceCharting
 def get_pokemon_cards(collection_url):
@@ -12,22 +11,27 @@ def get_pokemon_cards(collection_url):
 
         table = soup.find('table', id='active')
         if table:
-            cards = defaultdict(list)  # Group cards by name and image
+            cards = {}
             for offer in table.find_all('tr', class_='offer'):
                 try:
                     # Card name
                     card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
                     card_name = card_name_element.text.strip() if card_name_element else "Unknown Name"
 
+                    # Grading name
+                    grading_element = offer.find('td', class_='description').find('p', class_='header')
+                    grading_name = grading_element.text.strip() if grading_element else "No Grading"
+
                     # Card value in USD
                     card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                     card_value_usd = card_value_element.text.strip() if card_value_element else "Unknown Value"
 
-                    # Convert the value to AUD and JPY (example conversion, update as needed)
-                    conversion_rate_aud = 1.5  # Example conversion rate, update to current rate
-                    conversion_rate_jpy = 150  # Example conversion rate, update to current rate
-                    card_value_aud = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
-                    card_value_jpy = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+                    # Convert the value to AUD (example conversion, update as needed)
+                    conversion_rate = 1.5  # Example conversion rate, update to current rate
+                    card_value_aud = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate:.2f} AUD"
+
+                    # Japanese price placeholder (replace with actual scraping logic if available)
+                    card_value_jpy = f"{float(card_value_usd.replace('$', '').replace(',', '')) * 150:.2f} JPY"
 
                     # Card link and image
                     card_link_element = offer.find('td', class_='photo').find('div').find('a')
@@ -44,12 +48,24 @@ def get_pokemon_cards(collection_url):
                         if not card_image_url:
                             card_image_url = offer.find('td', class_='photo').find('div').find('a').find('img').get('src')
 
-                        # Add the grading info to the card list
-                        cards[(card_name, card_image_url)].append({
-                            'value_aud': card_value_aud,
-                            'value_jpy': card_value_jpy,
-                            'link': f"https://www.pricecharting.com{card_link}"
-                        })
+                        # Check if card already exists, if so, append grading and values
+                        if card_name in cards:
+                            cards[card_name]['gradings'].append({
+                                'grading_name': grading_name,
+                                'value_aud': card_value_aud,
+                                'value_jpy': card_value_jpy
+                            })
+                        else:
+                            # Create the card display
+                            cards[card_name] = {
+                                'image': card_image_url,
+                                'gradings': [{
+                                    'grading_name': grading_name,
+                                    'value_aud': card_value_aud,
+                                    'value_jpy': card_value_jpy
+                                }],
+                                'link': f"https://www.pricecharting.com{card_link}"
+                            }
 
                     else:
                         st.error(f"Could not find card link for {card_name}.")
@@ -74,15 +90,14 @@ def get_pokemon_cards(collection_url):
 def display_cards(cards):
     if cards:
         cols = st.columns(2)  # Create two columns for the grid layout
-        for idx, ((card_name, card_image), gradings) in enumerate(cards.items()):
+        for idx, (card_name, card) in enumerate(cards.items()):
             col = cols[idx % 2]  # Alternate between columns
             with col:
                 st.subheader(card_name)
-                st.image(card_image, use_column_width=True)
-                for grading in gradings:
-                    st.write(f"**Value (AUD):** {grading['value_aud']}")
-                    st.write(f"**Value (JPY):** {grading['value_jpy']}")
-                    st.markdown(f"[View on PriceCharting]({grading['link']})")
+                st.image(card['image'], caption=card_name, use_column_width=True)
+                for grading in card['gradings']:
+                    st.write(f"**{grading['grading_name']}:** {grading['value_aud']} | {grading['value_jpy']}")
+                st.markdown(f"[View on PriceCharting]({card['link']})")
 
 # Streamlit app setup
 st.title("Pokémon Card Tracker")
