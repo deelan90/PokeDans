@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 
-st.title("PokéDan")
+st.title("Pokémon Card Tracker")
 
 # Define the PriceCharting URL
 priceChartingUrl = 'https://www.pricecharting.com/offers?seller=ym3hqoown5rn5kk7vymq5bjvfq&status=collection'
@@ -11,6 +11,7 @@ priceChartingUrl = 'https://www.pricecharting.com/offers?seller=ym3hqoown5rn5kk7
 def get_pokemon_cards():
     try:
         response = requests.get(priceChartingUrl)
+        response.raise_for_status()  # Raise an exception for bad responses
         soup = BeautifulSoup(response.content, 'html.parser')
 
         cards = []
@@ -24,8 +25,11 @@ def get_pokemon_cards():
                 'image': card_image
             })
         return cards
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {e}")
+        return None
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
         return None
 
 # Fetch and display the data
