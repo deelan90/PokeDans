@@ -123,8 +123,8 @@ if user_email:
         st.success('Collection link saved!')
 
     if collection_link:
+        if st.button('Refresh'):
+            st.experimental_rerun()  # Trigger a rerun of the app after saving the link
+        
         cards = get_pokemon_cards(collection_link)
         display_cards(cards)
-
-    if st.button('Refresh'):
-        st.experimental_rerun()
