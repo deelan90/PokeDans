@@ -6,7 +6,7 @@ import logging
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Custom CSS for Pokémon-style font, title, and Franklin Gothic for body text
+# Custom CSS for Pokémon-style font and Franklin Gothic for body text
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Flexo:wght@700&display=swap');
@@ -20,41 +20,34 @@ body {
     font-size: 48px;
     font-weight: 700;
     color: #FFCB05;
-    -webkit-text-stroke: 2px #3A5DA8;
-    text-stroke: 2px #3A5DA8;
-    text-shadow: 
-        4px 4px 0 #3A5DA8,
-        -2px -2px 0 #3A5DA8,
-        2px -2px 0 #3A5DA8,
-        -2px 2px 0 #3A5DA8,
-        2px 2px 0 #3A5DA8;
     letter-spacing: 2px;
     padding: 20px;
     text-align: center;
-    background: linear-gradient(to bottom, #3A5DA8 0%, #2A75BB 100%);
-    border-radius: 10px;
     margin-bottom: 20px;
 }
 
 .pokemon-font {
     font-family: 'Flexo', sans-serif;
     color: #FFCB05;
-    text-shadow: 2px 2px #3A5DA8;
+    font-size: 18px;
+    margin-bottom: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
 
+# Function to fetch high-res image
 def get_high_res_image(card_url):
     try:
         response = requests.get(card_url)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
-        card_image_element = soup.find('img', class_='product-thumbnail')
+        card_image_element = soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
         return card_image_element['src'] if card_image_element else None
     except Exception as e:
         logging.error(f"Error fetching high-res image: {e}")
         return None
 
+# Function to fetch and extract data from PriceCharting
 def get_pokemon_cards(collection_url):
     try:
         response = requests.get(collection_url)
@@ -67,7 +60,7 @@ def get_pokemon_cards(collection_url):
             return None
         
         cards = {}
-        for offer in table.find_all('tr'):
+        for offer in table.find_all('tr', class_='offer'):
             try:
                 # Card name
                 card_name_element = offer.find('p', class_='title')
@@ -131,6 +124,7 @@ def get_pokemon_cards(collection_url):
         logging.error(f"An unexpected error occurred: {e}")
         return None
 
+# Function to display the cards in Streamlit
 def display_cards(cards):
     if cards:
         cols = st.columns(2)  # Create two columns for the grid layout
