@@ -33,7 +33,7 @@ def get_pokemon_cards(collection_link):
 
 
                     # Find the card value
-                    card_value_element = offer.find('td', class_='price').find('span', class='js-price')
+                    card_value_element = offer.find('td', class_='price').find('span', class='js-price') 
                     if card_value_element:
                         card_value = card_value_element.text.strip()
                     else:
