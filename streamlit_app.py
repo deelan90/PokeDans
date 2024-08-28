@@ -42,9 +42,9 @@ def get_high_res_image(card_link):
         card_page_response.raise_for_status()
         soup = BeautifulSoup(card_page_response.content, 'html.parser')
 
-        # Original logic that worked
+        # Find the highest resolution image available
         card_image_element = soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
-        if card_image_element:
+        if card_image_element and card_image_element.get('src'):
             return card_image_element.get('src')
         else:
             logging.error("Could not find high-resolution image.")
@@ -83,13 +83,17 @@ def get_pokemon_cards(collection_url):
                 # Convert the value to AUD and JPY
                 conversion_rate_aud = 1.5  # Example conversion rate
                 conversion_rate_jpy = 150  # Example conversion rate
-                card_value_aud = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
-                card_value_jpy = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
-
+                try:
+                    card_value_aud = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
+                    card_value_jpy = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+                except ValueError:
+                    card_value_aud = "Unknown Value"
+                    card_value_jpy = "Unknown Value"
+                
                 # Card link
                 card_link_element = offer.find('a', class_='item-link')
                 card_link = f"https://www.pricecharting.com{card_link_element['href']}" if card_link_element else None
-
+                
                 # Update or create card entry
                 if card_name in cards:
                     cards[card_name]['gradings'].append({
