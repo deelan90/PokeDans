@@ -13,7 +13,7 @@ def get_pokemon_cards():
         response = requests.get(priceChartingUrl)
         response.raise_for_status()  # Raise an exception for bad responses
         soup = BeautifulSoup(response.content, 'html.parser')
-        
+
         # Extract only the relevant part of the HTML
         # Get the table with the card data
         table = soup.find('table', id='active')
@@ -26,17 +26,16 @@ def get_pokemon_cards():
                     card_value = offer.find('td', class_='price').find('span', class_='js-price').text
                     card_image = offer.find('td', class_='photo').find('div').find('a').find('img').get('src')
                     
-                    # Debug: Print the extracted data
-                    st.write(f"Extracted data for card:")
-                    st.write(f"  - Name: {card_name}")
-                    st.write(f"  - Value: {card_value}")
-                    st.write(f"  - Image: {card_image}")
+                    # Build the card display with a pop-up link
+                    card_display = f"""
+                    <a href="{offer.find('td', class_='photo').find('div').find('a').get('href')}" target="_blank">
+                        <img src="{card_image}" alt="{card_name}" style="width: 200px; height: auto;">
+                    </a>
+                    <p>**Card Name:** {card_name}</p>
+                    <p>**Value:** {card_value}</p>
+                    """
 
-                    cards.append({
-                        'name': card_name,
-                        'value': card_value,
-                        'image': card_image
-                    })
+                    cards.append(card_display)
                 except AttributeError as e:
                     st.error(f"Error extracting data: {e}")
                     # Print the HTML for the current offer to help with debugging
@@ -61,10 +60,7 @@ def get_pokemon_cards():
 def display_cards(cards):
     if cards:
         for card in cards:
-            st.image(card['image'])
-            st.write(f"**Card Name:** {card['name']}")
-            st.write(f"**Value:** {card['value']}")
-            st.write("---")
+            st.markdown(card, unsafe_allow_html=True)
 
 # Get the Pokémon card data
 cards = get_pokemon_cards()
