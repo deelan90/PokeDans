@@ -2,67 +2,58 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 
-st.title("Pokémon Card Tracker")
-
-# Define the PriceCharting URL
-priceChartingUrl = 'https://www.pricecharting.com/offers?seller=ym3hqoown5rn5kk7vymq5bjvfq&status=collection'
-
 # Function to fetch and extract data from PriceCharting
-def get_pokemon_cards():
+def get_pokemon_cards(collection_url):
     try:
-        response = requests.get(priceChartingUrl)
-        response.raise_for_status()  # Raise an exception for bad responses
+        response = requests.get(collection_url)
+        response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        # Extract only the relevant part of the HTML
-        cards = []
-        for offer in soup.find_all('tr', class_='offer'):
-            try:
-                # Extract card details
-                card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
-                card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
-                card_image_element = offer.find('td', class_='photo').find('div').find('a').find('img')
-                card_link_element = offer.find('td', class_='photo').find('div').find('a')
+        table = soup.find('table', id='active')
+        if table:
+            cards = []
+            for offer in table.find_all('tr', class_='offer'):
+                try:
+                    # Card name
+                    card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
+                    card_name = card_name_element.text.strip() if card_name_element else "Unknown Name"
 
-                if card_name_element and card_value_element and card_image_element and card_link_element:
-                    card_name = card_name_element.text.strip()
-                    card_value = card_value_element.text.strip()
-                    card_image_url = card_image_element.get('src')
-                    card_link = card_link_element.get('href')
+                    # Card value in USD
+                    card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
+                    card_value_usd = card_value_element.text.strip() if card_value_element else "Unknown Value"
 
-                    # Fetch the high-resolution image from the individual card page
-                    card_response = requests.get(f"https://www.pricecharting.com{card_link}")
-                    card_response.raise_for_status()
-                    card_soup = BeautifulSoup(card_response.content, 'html.parser')
-                    
-                    # Find the higher resolution image, fallback to original if not found
-                    card_image_high_res = card_soup.find('img', class_='card-image') or card_soup.find('img', class_='image-rotate-canvas')
-                    card_image = card_image_high_res.get('src') if card_image_high_res else card_image_url
+                    # Convert the value to AUD (example conversion, update as needed)
+                    conversion_rate = 1.5  # Example conversion rate, update to current rate
+                    card_value_aud = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate:.2f} AUD"
 
-                    # Build the card display with a pop-up link
-                    card_display = f"""
-                    <a href="{card_link}" target="_blank">
-                        <img src="{card_image}" alt="{card_name}" style="width: 200px; height: auto;">
-                    </a>
-                    <p><strong>Card Name:</strong> {card_name}</p>
-                    <p><strong>Value:</strong> {card_value}</p>
-                    """
+                    # Japanese price placeholder (replace with actual scraping logic if available)
+                    card_value_jpy = f"{float(card_value_usd.replace('$', '').replace(',', '')) * 150:.2f} JPY"
 
+                    # Card link
+                    card_link_element = offer.find('td', class_='photo').find('div').find('a')
+                    card_link = card_link_element.get('href') if card_link_element else None
+
+                    # Fetch the high-resolution image
+                    card_image_url = get_high_res_image(card_link) if card_link else None
+
+                    # Create the card display
+                    card_display = {
+                        'name': card_name,
+                        'value_aud': card_value_aud,
+                        'value_jpy': card_value_jpy,
+                        'image': card_image_url,
+                        'link': f"https://www.pricecharting.com{card_link}" if card_link else None
+                    }
                     cards.append(card_display)
-                else:
-                    st.error("One or more elements were not found for this offer.")
-                    st.write(f"HTML for the current offer:\n{offer.prettify()}")
 
-            except AttributeError as e:
-                st.error(f"Error extracting data: {e}")
-                # Print the HTML for the current offer to help with debugging
-                st.write(f"HTML for the current offer:\n{offer.prettify()}")
-                continue  # Move on to the next offer
-            except Exception as e:
-                st.error(f"An unexpected error occurred: {e}")
-                return None
+                except Exception as e:
+                    st.error(f"An unexpected error occurred: {e}")
+                    continue
 
-        return cards
+            return cards
+        else:
+            st.error("Could not find the card data table.")
+            return None
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {e}")
         return None
@@ -70,14 +61,50 @@ def get_pokemon_cards():
         st.error(f"An unexpected error occurred: {e}")
         return None
 
-# Fetch and display the data
+# Function to fetch high-resolution images
+def get_high_res_image(card_link):
+    try:
+        card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
+        card_page_response.raise_for_status()
+        card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
+
+        # Find the highest resolution image available
+        card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
+        if card_image_element:
+            return card_image_element.get('src')
+        else:
+            st.error("Could not find high-resolution image.")
+            return None
+    except Exception as e:
+        st.error(f"Error fetching high-resolution image: {e}")
+        return None
+
+# Fetch and display the data in a grid layout
 def display_cards(cards):
     if cards:
-        for card in cards:
-            st.markdown(card, unsafe_allow_html=True)
+        cols = st.columns(2)  # Create two columns for the grid layout
+        for idx, card in enumerate(cards):
+            col = cols[idx % 2]  # Alternate between columns
+            with col:
+                st.image(card['image'], caption=card['name'], use_column_width=True)
+                st.write(f"**Value (AUD):** {card['value_aud']}")
+                st.write(f"**Value (JPY):** {card['value_jpy']}")
+                st.markdown(f"[View on PriceCharting]({card['link']})")
 
-# Get the Pokémon card data
-cards = get_pokemon_cards()
+# Streamlit app setup
+st.title("Pokémon Card Tracker")
 
-# Display the cards
-display_cards(cards)
+# Input for the collection URL
+collection_link = st.text_input("Enter the collection link:")
+
+if collection_link:
+    st.success(f"Your saved collection link: {collection_link}")
+    cards = get_pokemon_cards(collection_link)
+    if cards:
+        display_cards(cards)
+else:
+    st.warning("Please enter a collection link to proceed.")
+
+# Hide the input field after submission
+if collection_link:
+    st.text_input("Enter the collection link:", value=collection_link, key="hidden", label_visibility="hidden")
