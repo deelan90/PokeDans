@@ -42,12 +42,12 @@ def get_high_res_image(card_link):
         card_page_response.raise_for_status()
         soup = BeautifulSoup(card_page_response.content, 'html.parser')
 
-        # Attempt to locate the card image with a more general selector
-        card_image_element = soup.find('img', {'src': lambda x: x and ('image' in x.lower() and ('jpeg' in x.lower() or 'jpg' in x.lower()))})
+        # Original logic that worked
+        card_image_element = soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
         if card_image_element:
             return card_image_element.get('src')
         else:
-            logging.error("Could not find a high-resolution image.")
+            logging.error("Could not find high-resolution image.")
             return None
     except Exception as e:
         logging.error(f"Error fetching high-resolution image: {e}")
@@ -69,32 +69,27 @@ def get_pokemon_cards(collection_url):
         for offer in table.find_all('tr', class_='offer'):
             try:
                 # Card name
-                card_name_element = offer.find('p', class_='title')
-                if not card_name_element:
-                    continue
-                card_name = card_name_element.text.strip()
-                
+                card_name_element = offer.find('p', class_='title').find('a')
+                card_name = card_name_element.text.strip() if card_name_element else "Unknown Name"
+
                 # Grading name
-                grading_element = offer.find('p', class_='header')
-                grading_name = grading_element.text.strip() if grading_element else "No Grading"
+                grading_element = offer.find('td', class_='includes')
+                grading_name = grading_element.text.strip() if grading_element else "Ungraded"
                 
-                # Card value
+                # Card value in USD
                 price_element = offer.find('span', class_='js-price')
-                card_value_usd = price_element.text.strip() if price_element else "Unknown Value"
-                
+                card_value_usd = price_element.text.strip() if price_element else "0.00"
+
                 # Convert the value to AUD and JPY
-                try:
-                    usd_value = float(card_value_usd.replace('$', '').replace(',', ''))
-                    card_value_aud = f"{usd_value * 1.5:.2f} AUD"
-                    card_value_jpy = f"{usd_value * 150:.2f} JPY"
-                except ValueError:
-                    card_value_aud = "Unknown Value"
-                    card_value_jpy = "Unknown Value"
-                
+                conversion_rate_aud = 1.5  # Example conversion rate
+                conversion_rate_jpy = 150  # Example conversion rate
+                card_value_aud = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
+                card_value_jpy = f"{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+
                 # Card link
                 card_link_element = offer.find('a', class_='item-link')
                 card_link = f"https://www.pricecharting.com{card_link_element['href']}" if card_link_element else None
-                
+
                 # Update or create card entry
                 if card_name in cards:
                     cards[card_name]['gradings'].append({
