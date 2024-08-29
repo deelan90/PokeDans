@@ -14,30 +14,30 @@ def get_pokemon_cards(collection_url):
             cards = {}
             for offer in table.find_all('tr', class_='offer'):
                 try:
+                    # Try to find the card name element
                     card_name_element = offer.find('td', class_='meta')
-                    if not card_name_element:
+                    if card_name_element:
+                        card_name = card_name_element.find('p', class_='title').find('a').text.strip()
+                    else:
                         st.error("Card name element not found.")
                         continue
 
-                    card_name = card_name_element.find('p', class_='title').find('a').text.strip()
-
+                    # Extract the card value
                     card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
-                    if not card_value_element:
-                        st.error("Card value element not found.")
-                        continue
+                    card_value_usd = card_value_element.text.strip() if card_value_element else "Unknown Value"
 
-                    card_value_usd = card_value_element.text.strip()
-
-                    conversion_rate_aud = 1.5  # Replace with real-time conversion from xe.com
-                    conversion_rate_jpy = 150  # Replace with real-time conversion from xe.com
+                    # Convert the value to AUD and JPY (using placeholders here)
+                    conversion_rate_aud = 1.5  # Placeholder, replace with real-time conversion
+                    conversion_rate_jpy = 150  # Placeholder, replace with real-time conversion
                     card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
                     card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
 
+                    # Get the card image link
                     card_link_element = offer.find('td', class_='photo').find('div').find('a')
                     card_link = card_link_element.get('href') if card_link_element else None
-
                     card_image_url = get_high_res_image(card_link) if card_link else None
 
+                    # Extract the grading information
                     grading_element = offer.find('td', class_='grade')
                     grading_name = grading_element.text.strip() if grading_element else "Ungraded"
 
