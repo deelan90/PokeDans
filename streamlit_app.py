@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
 import streamlit as st
-from forex_python.converter import CurrencyRates
 from PIL import Image
 from io import BytesIO
 
@@ -19,11 +18,15 @@ def get_high_res_image(card_link):
         st.error(f"Error fetching high-resolution image: {e}")
         return None
 
-# Function to fetch the exchange rates
+# Function to fetch the exchange rates manually
 def get_exchange_rates():
-    c = CurrencyRates()
-    rate_aud = c.get_rate('USD', 'AUD')
-    rate_yen = c.get_rate('USD', 'JPY')
+    url = "https://api.exchangerate-api.com/v4/latest/USD"
+    response = requests.get(url, verify=False)  # Disable SSL verification
+    data = response.json()
+    
+    rate_aud = data['rates']['AUD']
+    rate_yen = data['rates']['JPY']
+    
     return rate_aud, rate_yen
 
 # Function to fetch the total value from the summary table
