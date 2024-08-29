@@ -42,9 +42,10 @@ def get_pokemon_cards(collection_url):
                 # Fetch the high-resolution image
                 card_image_url = get_high_res_image(card_link) if card_link else None
 
-                # Extract grading information
+                # Extract the selected grading option from the dropdown
                 grading_element = offer.find('td', class_='includes').find('select')
-                selected_grading = grading_element.find('option', selected=True).text.strip() if grading_element else "Ungraded"
+                selected_option = grading_element.find('option', selected=True)
+                grading_name = selected_option.text.strip() if selected_option else "Ungraded"
 
                 # Organize data
                 if card_name not in cards:
@@ -55,7 +56,7 @@ def get_pokemon_cards(collection_url):
                     }
                 
                 cards[card_name]['gradings'].append({
-                    'grading_name': selected_grading,
+                    'grading_name': grading_name,
                     'value_aud': card_value_aud,
                     'value_jpy': card_value_jpy,
                     'link': f"https://www.pricecharting.com{card_link}" if card_link else None
