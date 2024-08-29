@@ -80,58 +80,68 @@ def get_pokemon_cards(collection_url):
         soup = BeautifulSoup(response.content, 'html.parser')
 
         table = soup.find('table', id='active')
-        if table:
-            cards = {}
-            for offer in table.find_all('tr', class_='offer'):
-                try:
-                    # Card name
-                    card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
-                    if not card_name_element:
-                        continue
-                    card_name = card_name_element.text.strip()
-
-                    # Grading name
-                    grading_element = offer.find('td', class_='meta').find_all('p')[2]
-                    grading_name = grading_element.text.strip() if grading_element else "Ungraded"
-
-                    # Card value
-                    price_element = offer.find('td', class_='price').find('span', class_='js-price')
-                    card_value_usd = price_element.text.strip() if price_element else "Unknown Value"
-
-                    # Convert the value to AUD and JPY
-                    try:
-                        usd_value = float(card_value_usd.replace('$', '').replace(',', ''))
-                        card_value_aud = f"${usd_value * 1.5:.2f} AUD"
-                        card_value_jpy = f"¥{usd_value * 150:.2f} JPY"
-                    except ValueError:
-                        card_value_aud = "Unknown Value"
-                        card_value_jpy = "Unknown Value"
-
-                    # Card link
-                    card_link_element = offer.find('td', class_='photo').find('div').find('a')
-                    card_link = card_link_element.get('href') if card_link_element else None
-
-                    # Fetch or update card entry
-                    if card_name not in cards:
-                        cards[card_name] = {
-                            'image': get_high_res_image(card_link) if card_link else None,
-                            'gradings': []
-                        }
-                    cards[card_name]['gradings'].append({
-                        'grading_name': grading_name,
-                        'value_aud': card_value_aud,
-                        'value_jpy': card_value_jpy,
-                        'link': f"https://www.pricecharting.com{card_link}" if card_link else None
-                    })
-
-                except Exception as e:
-                    st.error(f"An error occurred processing a card: {e}")
-                    continue
-
-            return cards
-        else:
+        if not table:
             st.error("Could not find the card data table.")
             return None
+
+        cards = {}
+        for offer in table.find_all('tr', class_='offer'):
+            try:
+                # Ensure card_name_element exists before accessing
+                card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
+                if card_name_element:
+                    card_name = card_name_element.text.strip()
+                else:
+                    continue
+
+                # Ensure grading_element exists and has at least 3 elements before accessing
+                grading_elements = offer.find('td', class_='meta').find_all('p')
+                if len(grading_elements) >= 3:
+                    grading_name = grading_elements[2].text.strip()
+                else:
+                    grading_name = "Ungraded"
+
+                # Ensure price_element exists before accessing
+                price_element = offer.find('td', class_='price').find('span', class_='js-price')
+                if price_element:
+                    card_value_usd = price_element.text.strip()
+                else:
+                    card_value_usd = "Unknown Value"
+
+                # Convert the value to AUD and JPY
+                try:
+                    usd_value = float(card_value_usd.replace('$', '').replace(',', ''))
+                    card_value_aud = f"${usd_value * 1.5:.2f} AUD"
+                    card_value_jpy = f"¥{usd_value * 150:.2f} JPY"
+                except ValueError:
+                    card_value_aud = "Unknown Value"
+                    card_value_jpy = "Unknown Value"
+
+                # Ensure card_link_element exists before accessing
+                card_link_element = offer.find('td', class_='photo').find('div').find('a')
+                if card_link_element:
+                    card_link = card_link_element.get('href')
+                else:
+                    card_link = None
+
+                # Fetch or update card entry
+                if card_name not in cards:
+                    cards[card_name] = {
+                        'image': get_high_res_image(card_link) if card_link else None,
+                        'gradings': []
+                    }
+                cards[card_name]['gradings'].append({
+                    'grading_name': grading_name,
+                    'value_aud': card_value_aud,
+                    'value_jpy': card_value_jpy,
+                    'link': f"https://www.pricecharting.com{card_link}" if card_link else None
+                })
+
+            except Exception as e:
+                st.error(f"An error occurred processing a card: {e}")
+                continue
+
+        return cards
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {e}")
         return None
