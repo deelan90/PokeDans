@@ -1,6 +1,5 @@
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
 import streamlit as st
 from forex_python.converter import CurrencyRates
 from datetime import datetime, timedelta
@@ -73,9 +72,12 @@ def display_card_info(soup, rate_aud, rate_yen):
 
         with col2:
             for grade, price_usd in grades:
-                price_aud = price_usd * rate_aud
-                price_yen = price_usd * rate_yen
-                st.markdown(f"**{grade}:** ${price_usd:.2f} USD / ${price_aud:.2f} AUD / ¥{price_yen:.0f} Yen")
+                if rate_aud is None or rate_yen is None:
+                    st.markdown(f"**{grade}:** ${price_usd:.2f} USD")
+                else:
+                    price_aud = price_usd * rate_aud
+                    price_yen = price_usd * rate_yen
+                    st.markdown(f"**{grade}:** ${price_usd:.2f} USD / ${price_aud:.2f} AUD / ¥{price_yen:.0f} Yen")
 
 # Main function to run the app
 def main():
@@ -91,9 +93,12 @@ def main():
         total_value_usd, total_count = fetch_total_value(soup)
 
         if total_value_usd and total_count:
-            total_value_aud = total_value_usd * rate_aud
-            total_value_yen = total_value_usd * rate_yen
-            st.markdown(f"### Total Collection Value: ${total_value_aud:.2f} AUD / ¥{total_value_yen:.0f} Yen")
+            if rate_aud is None or rate_yen is None:
+                st.markdown(f"### Total Collection Value: ${total_value_usd:.2f} USD")
+            else:
+                total_value_aud = total_value_usd * rate_aud
+                total_value_yen = total_value_usd * rate_yen
+                st.markdown(f"### Total Collection Value: ${total_value_aud:.2f} AUD / ¥{total_value_yen:.0f} Yen")
             st.markdown(f"<p style='font-size: small;'>Total Cards: {total_count}</p>", unsafe_allow_html=True)
         else:
             st.markdown("### Total Collection Value: Not available")
