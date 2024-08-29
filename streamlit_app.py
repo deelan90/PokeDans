@@ -114,15 +114,12 @@ def display_cards(cards):
             """, unsafe_allow_html=True)
 
         for card in cards:
-            if 'name' not in card:  # Check if 'name' key exists
-                continue  # Skip cards without a name
-
             st.markdown(f"### {card['name']}")
             cols = st.columns(num_columns)
             for idx, grading in enumerate(card['gradings']):
                 with cols[idx % num_columns]:
                     st.markdown("<div class='card-image-container'>", unsafe_allow_html=True)
-                    if 'image' in card and card['image']:  # Check if 'image' key exists and has a value
+                    if card['image']:
                         st.image(card['image'], use_column_width=True, class_="card-image")
                     else:
                         st.write("Image not available")
