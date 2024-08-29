@@ -9,6 +9,8 @@ logging.basicConfig(level=logging.DEBUG)
 # Custom CSS for Pokémon-style font and page title
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Flexo:wght@700&display=swap');
+
 .page-title {
     font-family: 'Flexo', sans-serif;
     font-size: 48px;
@@ -41,16 +43,14 @@ st.markdown("""
 # Function to fetch high-resolution images
 def get_high_res_image(card_link):
     try:
-        card_page_response = requests.get(card_link)
+        card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
         card_page_response.raise_for_status()
         card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
 
-        # Attempt to find the main image element
+        # Use the original image selector that was working
         card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
         if card_image_element:
-            image_url = card_image_element.get('src')
-            logging.info(f"Image found: {image_url}")
-            return image_url
+            return card_image_element.get('src')
         else:
             logging.error("Could not find high-resolution image.")
             return None
@@ -102,8 +102,8 @@ def get_pokemon_cards(collection_url):
                     card_value_jpy = "Unknown Value"
                 
                 # Card link
-                card_link_element = offer.find('a', class_='item-link')
-                card_link = f"https://www.pricecharting.com{card_link_element['href']}" if card_link_element else None
+                card_link_element = offer.find('td', class_='photo').find('a')
+                card_link = card_link_element.get('href') if card_link_element else None
                 
                 # Update or create card entry
                 if card_name in cards:
@@ -157,7 +157,7 @@ def display_cards(cards):
                     st.markdown(f"<div class='card-grading'><b>{grading['grading_name']}</b><br>AUD: {grading['value_aud']}<br>JPY: {grading['value_jpy']}</div>", unsafe_allow_html=True)
                 
                 if card['link']:
-                    st.markdown(f"[View on PriceCharting]({card['link']})")
+                    st.markdown(f"[View on PriceCharting](https://www.pricecharting.com{card['link']})")
 
 # Streamlit app setup
 st.markdown("<h1 class='page-title'>PokéDan</h1>", unsafe_allow_html=True)
