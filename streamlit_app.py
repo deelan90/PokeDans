@@ -18,15 +18,24 @@ def get_pokemon_cards(collection_url):
         for offer in table.find_all('tr', class_='offer'):
             try:
                 # Card name
-                card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
+                card_name_element = offer.find('td', class_='meta')
                 if not card_name_element:
+                    st.error("Card name element not found.")
                     continue
-                card_name = card_name_element.text.strip()
+                
+                card_name_tag = card_name_element.find('p', class_='title').find('a')
+                if not card_name_tag:
+                    st.error("Card name tag not found.")
+                    continue
+                
+                card_name = card_name_tag.text.strip()
 
                 # Card value in USD
                 card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                 if not card_value_element:
+                    st.error(f"Card value element not found for {card_name}.")
                     continue
+                
                 card_value_usd = card_value_element.text.strip()
 
                 # Convert the value to AUD and JPY
@@ -37,13 +46,21 @@ def get_pokemon_cards(collection_url):
 
                 # Card link
                 card_link_element = offer.find('td', class_='photo').find('div').find('a')
-                card_link = card_link_element.get('href') if card_link_element else None
+                if not card_link_element:
+                    st.error(f"Card link element not found for {card_name}.")
+                    continue
+                
+                card_link = card_link_element.get('href')
 
                 # Fetch the high-resolution image
                 card_image_url = get_high_res_image(card_link) if card_link else None
 
                 # Extract the selected grading option from the dropdown
                 grading_element = offer.find('td', class_='includes').find('select')
+                if not grading_element:
+                    st.error(f"Grading element not found for {card_name}.")
+                    continue
+
                 selected_option = grading_element.find('option', selected=True)
                 grading_name = selected_option.text.strip() if selected_option else "Ungraded"
 
@@ -66,7 +83,7 @@ def get_pokemon_cards(collection_url):
                 st.error(f"An unexpected error occurred: {e}")
                 continue
 
-        return list(cards.values())
+        return sorted(list(cards.values()), key=lambda x: x['name'])
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {e}")
         return None
@@ -80,11 +97,7 @@ def get_high_res_image(card_link):
 
         # Find the highest resolution image available
         card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
-        if card_image_element:
-            return card_image_element.get('src')
-        else:
-            st.error("Could not find high-resolution image.")
-            return None
+        return card_image_element.get('src') if card_image_element else None
     except Exception as e:
         st.error(f"Error fetching high-resolution image: {e}")
         return None
