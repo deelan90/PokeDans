@@ -56,7 +56,7 @@ def display_card_info(soup, rate_aud, rate_yen):
 
             if card_name not in card_data:
                 card_data[card_name] = []
-            card_data[card_name].append((card_grade, float(card_price_usd)))
+            card_data[card_name].append((card_grade, float(card_price_usd), card.find('a')['href']))
 
         except AttributeError:
             st.warning("Card name tag not found, skipping entry.")
@@ -64,14 +64,14 @@ def display_card_info(soup, rate_aud, rate_yen):
 
     for card_name, grades in card_data.items():
         st.markdown(f"### {card_name}")  # Card name larger size
-        card_image = get_high_res_image(grades[0][0])
+        card_image = get_high_res_image(grades[0][2])
 
         col1, col2 = st.columns([1, 3])
         if card_image:
             col1.image(card_image, use_column_width=True)
 
         with col2:
-            for grade, price_usd in grades:
+            for grade, price_usd, _ in grades:
                 if rate_aud is None or rate_yen is None:
                     st.markdown(f"**{grade}:** ${price_usd:.2f} USD")
                 else:
