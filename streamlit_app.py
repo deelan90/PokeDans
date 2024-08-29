@@ -6,38 +6,51 @@ import logging
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Custom CSS for Pokémon-style font and page title
+# Custom CSS for styling
 st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Flexo:wght@700&display=swap');
-
-.page-title {
-    font-family: 'Flexo', sans-serif;
-    font-size: 48px;
-    font-weight: 700;
-    color: #FFCB05;
-    letter-spacing: 2px;
-    padding: 20px;
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.pokemon-font {
-    font-family: 'Flexo', sans-serif;
-    color: #080808;
-    font-size: 18px;
-    margin-bottom: 10px;
-}
-
-.card-grading {
-    background-color: #080808;
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 5px;
-    text-align: center;
-}
-
-</style>
+    <style>
+    /* General body and card styles */
+    body {
+        font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+        background-color: #1e1e1e;
+        color: #ffffff;
+    }
+    .card-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .card-image {
+        border-radius: 8px;
+    }
+    .grading-card {
+        background-color: #000000;
+        color: #ffffff;
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 10px;
+        text-align: center;
+        width: 90%;
+    }
+    /* Adjustments for mobile view */
+    @media (max-width: 768px) {
+        .card-container {
+            width: 100%;
+        }
+    }
+    /* Adjustments for desktop view */
+    @media (min-width: 769px) {
+        .card-container {
+            width: 48%;
+            margin-right: 2%;
+            float: left;
+        }
+        .card-container:nth-child(2n) {
+            margin-right: 0;
+        }
+    }
+    </style>
 """, unsafe_allow_html=True)
 
 # Function to fetch high-resolution images
@@ -47,15 +60,15 @@ def get_high_res_image(card_link):
         card_page_response.raise_for_status()
         card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
 
-        # Use the original image selector that was working
+        # Find the highest resolution image available
         card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
         if card_image_element:
             return card_image_element.get('src')
         else:
-            logging.error("Could not find high-resolution image.")
+            st.error("Could not find high-resolution image.")
             return None
     except Exception as e:
-        logging.error(f"Error fetching high-resolution image: {e}")
+        st.error(f"Error fetching high-resolution image: {e}")
         return None
 
 # Function to fetch and extract data from PriceCharting
@@ -74,36 +87,31 @@ def get_pokemon_cards(collection_url):
         for offer in table.find_all('tr', class_='offer'):
             try:
                 # Card name
-                card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
+                card_name_element = offer.find('p', class_='title')
                 if not card_name_element:
-                    logging.error(f"Card name element not found for offer: {offer}")
                     continue
                 card_name = card_name_element.text.strip()
                 
                 # Grading name
-                grading_element = offer.find_all('td')[2].find('p')
-                grading_name = grading_element.text.strip() if grading_element else "Ungraded"
+                grading_element = offer.find_all('td')[2]  # Assuming grading names are in column 3
+                grading_name = grading_element.text.strip() if grading_element else "No Grading"
                 
                 # Card value
                 price_element = offer.find('span', class_='js-price')
-                if not price_element:
-                    logging.error(f"Price element not found for card: {card_name}")
-                    card_value_usd = "Unknown Value"
-                else:
-                    card_value_usd = price_element.text.strip()
+                card_value_usd = price_element.text.strip() if price_element else "Unknown Value"
                 
-                # Convert the value to AUD and JPY using currency symbols
+                # Convert the value to AUD and JPY
                 try:
                     usd_value = float(card_value_usd.replace('$', '').replace(',', ''))
-                    card_value_aud = f"${usd_value * 1.5:.2f}"
-                    card_value_jpy = f"¥{usd_value * 150:.2f}"
+                    card_value_aud = f"${usd_value * 1.5:.2f} AUD"
+                    card_value_jpy = f"¥{usd_value * 150:.2f} JPY"
                 except ValueError:
                     card_value_aud = "Unknown Value"
                     card_value_jpy = "Unknown Value"
                 
                 # Card link
-                card_link_element = offer.find('td', class_='photo').find('a')
-                card_link = card_link_element.get('href') if card_link_element else None
+                card_link_element = offer.find('a', class_='item-link')
+                card_link = f"https://www.pricecharting.com{card_link_element['href']}" if card_link_element else None
                 
                 # Update or create card entry
                 if card_name in cards:
@@ -143,30 +151,24 @@ def get_pokemon_cards(collection_url):
 # Function to display the cards in Streamlit
 def display_cards(cards):
     if cards:
-        cols = st.columns(2)  # Create two columns for the grid layout
-        for idx, (card_name, card) in enumerate(cards.items()):
-            col = cols[idx % 2]  # Alternate between columns
-            with col:
-                st.markdown(f"<h3 class='pokemon-font'>{card_name}</h3>", unsafe_allow_html=True)
-                if card['image']:
-                    st.image(card['image'], caption=card_name, use_column_width=True)
-                else:
-                    st.write("Image not available")
-                
-                for grading in card['gradings']:
-                    st.markdown(f"<div class='card-grading'><b>{grading['grading_name']}</b><br>AUD: {grading['value_aud']}<br>JPY: {grading['value_jpy']}</div>", unsafe_allow_html=True)
-                
-                if card['link']:
-                    st.markdown(f"[View on PriceCharting](https://www.pricecharting.com{card['link']})")
+        for card_name, card in cards.items():
+            st.markdown(f"<div class='card-container'><div class='card-image'><img src='{card['image']}' style='width:100%;' alt='{card_name}'/></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='grading-card'><h3>{card_name}</h3>", unsafe_allow_html=True)
+            for grading in card['gradings']:
+                st.markdown(f"<p>{grading['grading_name']}</p><p>AUD: {grading['value_aud']}</p><p>JPY: {grading['value_jpy']}</p></div>", unsafe_allow_html=True)
+            if card['link']:
+                st.markdown(f"<p><a href='{card['link']}' target='_blank'>View on PriceCharting</a></p></div>", unsafe_allow_html=True)
 
 # Streamlit app setup
-st.markdown("<h1 class='page-title'>PokéDan</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='font-family: Flexo, sans-serif; color: #FFCB05;'>PokéDan</h1>", unsafe_allow_html=True)
 
+# Input for the collection URL
 collection_link = st.text_input("Enter the collection link:")
 if collection_link:
     st.success(f"Your saved collection link: {collection_link}")
     cards = get_pokemon_cards(collection_link)
     if cards:
+        # Fetch high-res images
         for card_name, card_data in cards.items():
             if card_data['link']:
                 card_data['image'] = get_high_res_image(card_data['link'])
@@ -176,5 +178,6 @@ if collection_link:
 else:
     st.warning("Please enter a collection link to proceed.")
 
+# Hide the input field after submission
 if collection_link:
     st.text_input("Enter the collection link:", value=collection_link, key="hidden", label_visibility="hidden")
