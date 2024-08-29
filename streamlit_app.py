@@ -49,13 +49,13 @@ body {
     padding: 2px;
     border-radius: 2px;
     margin-bottom: 2px;
-    width: 100%;
+    width: 50%;
     box-sizing: border-box;
 }
 
 .grading-card h4 {
     font-weight: bold;
-    font-size: 25px;
+    font-size: 12px;
     margin: 0;
     text-align: center;
 }
@@ -65,11 +65,13 @@ body {
         object-fit: cover;
         max-width: 100%;
         height: auto;
+        border-radius: 10px;
     }
 
     .card-container {
         display: flex;
         align-items: flex-start;
+        border-radius: 10px;
     }
 
     .stColumns {
