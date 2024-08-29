@@ -24,13 +24,11 @@ def get_pokemon_cards(collection_url):
                 card_name_element = offer.find('td', class_='meta')
                 if not card_name_element:
                     st.error("Card name element not found.")
-                    st.write(offer)  # Debugging: Print the offer HTML
                     continue
                 
                 card_name_tag = card_name_element.find('p', class_='title').find('a')
                 if not card_name_tag:
                     st.error("Card name tag not found.")
-                    st.write(card_name_element)  # Debugging: Print the card name element HTML
                     continue
                 
                 card_name = card_name_tag.text.strip()
@@ -64,15 +62,13 @@ def get_pokemon_cards(collection_url):
                 # Fetch the high-resolution image
                 card_image_url = get_high_res_image(card_link) if card_link else None
 
-                # Extract the selected grading option from the dropdown
-                grading_element = offer.find('td', class_='includes').find('select')
+                # Extract the grading information from the includes column
+                grading_element = offer.find('td', class_='includes')
                 if not grading_element:
                     st.error(f"Grading element not found for {card_name}.")
-                    st.write(offer)  # Debugging: Print the offer HTML
                     continue
 
-                selected_option = grading_element.find('option', selected=True)
-                grading_name = selected_option.text.strip() if selected_option else "Ungraded"
+                grading_name = grading_element.text.strip() if grading_element else "Ungraded"
 
                 # Organize data
                 if card_name not in cards:
