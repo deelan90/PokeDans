@@ -26,9 +26,22 @@ def fetch_and_convert_currency(usd_value):
 def fetch_total_value_and_count(soup):
     try:
         summary_table = soup.find('table', {'id': 'summary'})
-        total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
-        card_count = summary_table.find_all('td', class_='number')[-1].text.strip()
-        return total_value_usd, card_count
+        if summary_table:
+            total_value_usd = summary_table.find('td', class_='js-value js-price')
+            if total_value_usd:
+                total_value_usd = total_value_usd.text.strip().replace('$', '').replace(',', '')
+            else:
+                total_value_usd = None
+
+            card_count = summary_table.find_all('td', class_='number')
+            if card_count:
+                card_count = card_count[-1].text.strip()
+            else:
+                card_count = None
+
+            return total_value_usd, card_count
+        else:
+            return None, None
     except Exception as e:
         st.error(f"Error fetching total value and count: {e}")
         return None, None
@@ -116,6 +129,7 @@ def main():
         st.markdown(f"### Total Cards in Collection: {card_count}")
     else:
         st.markdown("### Total Collection Value: Not available")
+        rate_aud, rate_yen = None, None
     
     display_card_info(soup, rate_aud, rate_yen)
 
