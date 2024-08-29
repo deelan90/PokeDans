@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 card_container_style = """
     .card-container {
         width: 12.5%;
-        max-width: 250px;
+        max-width: 50px;
         margin: 10px;
         padding: 10px;
         border-radius: 15px;
