@@ -24,11 +24,13 @@ def get_pokemon_cards(collection_url):
                 card_name_element = offer.find('td', class_='meta')
                 if not card_name_element:
                     st.error("Card name element not found.")
+                    st.write(offer)  # Debugging: Print the offer HTML
                     continue
                 
                 card_name_tag = card_name_element.find('p', class_='title').find('a')
                 if not card_name_tag:
                     st.error("Card name tag not found.")
+                    st.write(card_name_element)  # Debugging: Print the card name element HTML
                     continue
                 
                 card_name = card_name_tag.text.strip()
@@ -42,10 +44,14 @@ def get_pokemon_cards(collection_url):
                 card_value_usd = card_value_element.text.strip()
 
                 # Convert the value to AUD and JPY
-                conversion_rate_aud = 1.5  # Placeholder conversion rate, update to current rate
-                conversion_rate_jpy = 150  # Placeholder conversion rate, update to current rate
-                card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
-                card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+                try:
+                    conversion_rate_aud = 1.5  # Placeholder conversion rate, update to current rate
+                    conversion_rate_jpy = 150  # Placeholder conversion rate, update to current rate
+                    card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
+                    card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+                except Exception as e:
+                    st.warning(f"Failed to convert currency for {card_name}: {e}")
+                    continue
 
                 # Card link
                 card_link_element = offer.find('td', class_='photo').find('div').find('a')
@@ -62,6 +68,7 @@ def get_pokemon_cards(collection_url):
                 grading_element = offer.find('td', class_='includes').find('select')
                 if not grading_element:
                     st.error(f"Grading element not found for {card_name}.")
+                    st.write(offer)  # Debugging: Print the offer HTML
                     continue
 
                 selected_option = grading_element.find('option', selected=True)
