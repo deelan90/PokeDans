@@ -7,7 +7,7 @@ def get_pokemon_cards(collection_url):
     try:
         response = requests.get(collection_url)
         response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'utf-8')
+        soup = BeautifulSoup(response.content, 'html.parser')  # Corrected parser
 
         table = soup.find('table', id='active')
         if table:
