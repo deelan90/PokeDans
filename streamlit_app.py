@@ -1,9 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 import streamlit as st
-from forex_python.converter import CurrencyRates
 
-# Function to fetch and convert currency
+# Function to fetch and convert currency using fixed rates
 def fetch_and_convert_currency(usd_value, rate):
     return usd_value * rate
 
@@ -11,7 +10,8 @@ def fetch_and_convert_currency(usd_value, rate):
 def fetch_total_value_and_count(soup):
     try:
         summary_table = soup.find('table', id='summary')
-        total_value_usd = float(summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', ''))
+        total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
+        total_value_usd = float(total_value_usd)
         card_count = int(summary_table.find_all('td', class_='number')[1].text.strip())
         return total_value_usd, card_count
     except Exception as e:
@@ -78,9 +78,9 @@ def main():
     
     # Fetch total value and card count
     total_value_usd, card_count = fetch_total_value_and_count(soup)
-    c = CurrencyRates()
-    rate_aud = c.get_rate('USD', 'AUD')
-    rate_yen = c.get_rate('USD', 'JPY')
+    # Fixed exchange rates as a workaround
+    rate_aud = 1.30  # Example: 1 USD = 1.30 AUD
+    rate_yen = 110.0  # Example: 1 USD = 110 YEN
     
     if total_value_usd and card_count:
         total_value_aud = fetch_and_convert_currency(total_value_usd, rate_aud)
