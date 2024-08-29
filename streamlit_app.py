@@ -99,16 +99,25 @@ def get_pokemon_cards(collection_url):
                 # Card name
                 card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
                 if not card_name_element:
+                    logging.error(f"Card name element not found for offer: {offer}")
                     continue
                 card_name = card_name_element.text.strip()
                 
                 # Grading name
                 grading_element = offer.find_all('td')[2].find('p')
-                grading_name = grading_element.text.strip() if grading_element else "Ungraded"
+                if not grading_element:
+                    logging.error(f"Grading element not found for card: {card_name}")
+                    grading_name = "Ungraded"
+                else:
+                    grading_name = grading_element.text.strip()
                 
                 # Card value
                 price_element = offer.find('span', class_='js-price')
-                card_value_usd = price_element.text.strip() if price_element else "Unknown Value"
+                if not price_element:
+                    logging.error(f"Price element not found for card: {card_name}")
+                    card_value_usd = "Unknown Value"
+                else:
+                    card_value_usd = price_element.text.strip()
                 
                 # Convert the value to AUD and JPY using currency symbols
                 try:
@@ -121,7 +130,11 @@ def get_pokemon_cards(collection_url):
                 
                 # Card link
                 card_link_element = offer.find('a', class_='item-link')
-                card_link = f"https://www.pricecharting.com{card_link_element['href']}" if card_link_element else None
+                if not card_link_element:
+                    logging.error(f"Card link element not found for card: {card_name}")
+                    card_link = None
+                else:
+                    card_link = f"https://www.pricecharting.com{card_link_element['href']}"
                 
                 # Update or create card entry
                 if card_name in cards:
