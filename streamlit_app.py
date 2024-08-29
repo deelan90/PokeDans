@@ -19,7 +19,7 @@ card_container_style = """
         border-radius: 15px;
     }
     .grading-name {
-        font-size: 1.2em;
+        font-size: 1.1em;
         font-weight: bold;
         margin-top: 10px;
     }
@@ -50,12 +50,15 @@ def get_pokemon_cards(collection_url):
                     card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                     card_value_usd = card_value_element.text.strip() if card_value_element else "Unknown Value"
 
-                    # Convert the value to AUD (example conversion, update as needed)
-                    conversion_rate = 1.5  # Example conversion rate, update to current rate
-                    card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate:.2f} AUD"
-
-                    # Japanese price placeholder (replace with actual scraping logic if available)
-                    card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * 150:.2f} JPY"
+                    # Convert the value to AUD and JPY
+                    conversion_rate_aud = 1.5  # Example conversion rate for AUD
+                    conversion_rate_jpy = 150  # Example conversion rate for JPY
+                    try:
+                        card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
+                        card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+                    except ValueError:
+                        card_value_aud = "Unknown AUD Value"
+                        card_value_jpy = "Unknown JPY Value"
 
                     # Card link
                     card_link_element = offer.find('td', class_='photo').find('div').find('a')
@@ -65,7 +68,7 @@ def get_pokemon_cards(collection_url):
                     card_image_url = get_high_res_image(card_link) if card_link else None
 
                     # Grading name
-                    grading_name_element = offer.find_all('td')[2]
+                    grading_name_element = offer.find_all('td')[2] if len(offer.find_all('td')) > 2 else None
                     grading_name = grading_name_element.text.strip() if grading_name_element else "Ungraded"
 
                     # Create the card display
@@ -106,10 +109,8 @@ def get_high_res_image(card_link):
         if card_image_element:
             return card_image_element.get('src')
         else:
-            st.error("Could not find high-resolution image.")
             return None
     except Exception as e:
-        st.error(f"Error fetching high-resolution image: {e}")
         return None
 
 # Display cards dynamically based on window size
@@ -120,7 +121,10 @@ def display_cards(cards):
             col = cols[idx % len(cols)]  # Dynamically assigns cards to columns
             with col:
                 st.markdown(f"<div class='card-container'>", unsafe_allow_html=True)
-                st.image(card['image'], use_column_width=True, class_="card-image")
+                if card['image']:
+                    st.image(card['image'], use_column_width=True)
+                else:
+                    st.write("Image not available")
                 st.markdown(f"<div class='grading-name'>{card['grading_name']}</div>", unsafe_allow_html=True)
                 st.markdown(f"<div class='card-value'>AUD: {card['value_aud']}<br>JPY: {card['value_jpy']}</div>", unsafe_allow_html=True)
                 st.markdown(f"<a href='{card['link']}' target='_blank'>View on PriceCharting</a>", unsafe_allow_html=True)
