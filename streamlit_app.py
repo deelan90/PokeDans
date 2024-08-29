@@ -23,12 +23,14 @@ def get_pokemon_cards(collection_url):
                 # Card name
                 card_name_element = offer.find('td', class_='meta')
                 if not card_name_element:
-                    st.error("Card name element not found.")
+                    st.warning("Card name element not found. Skipping this card.")
+                    st.code(str(offer))
                     continue
                 
                 card_name_tag = card_name_element.find('p', class_='title').find('a')
                 if not card_name_tag:
-                    st.error("Card name tag not found.")
+                    st.warning("Card name tag not found. Skipping this card.")
+                    st.code(str(offer))
                     continue
                 
                 card_name = card_name_tag.text.strip()
@@ -36,7 +38,7 @@ def get_pokemon_cards(collection_url):
                 # Card value in USD
                 card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                 if not card_value_element:
-                    st.error(f"Card value element not found for {card_name}.")
+                    st.warning(f"Card value element not found for {card_name}.")
                     continue
                 
                 card_value_usd = card_value_element.text.strip()
@@ -54,7 +56,7 @@ def get_pokemon_cards(collection_url):
                 # Card link
                 card_link_element = offer.find('td', class_='photo').find('div').find('a')
                 if not card_link_element:
-                    st.error(f"Card link element not found for {card_name}.")
+                    st.warning(f"Card link element not found for {card_name}.")
                     continue
                 
                 card_link = card_link_element.get('href')
@@ -65,7 +67,8 @@ def get_pokemon_cards(collection_url):
                 # Extract the grading information from the includes column
                 grading_element = offer.find('td', class_='includes')
                 if not grading_element:
-                    st.error(f"Grading element not found for {card_name}.")
+                    st.warning(f"Grading element not found for {card_name}.")
+                    st.code(str(offer))
                     continue
 
                 grading_name = grading_element.text.strip() if grading_element else "Ungraded"
