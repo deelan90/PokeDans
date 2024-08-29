@@ -101,55 +101,6 @@ def get_pokemon_cards(collection_url):
         st.error(f"Error fetching data: {e}")
         return None
 
-# Function to fetch and extract data from PriceCharting for wishlist
-def get_wishlist_items(wishlist_url):
-    try:
-        response = requests.get(wishlist_url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'html.parser')
-
-        table = soup.find('table', id='games_table')
-        if not table:
-            st.error("Could not find the wishlist data table.")
-            return None
-
-        wishlist_items = []
-        for row in table.find_all('tr'):
-            try:
-                # Ensure the row contains wishlist data
-                WL_item_name_element = row.find('td', class_='console')
-                if not WL_item_name_element:
-                    continue
-
-                WL_item_name = WL_item_name_element.text.strip()
-
-                WL_item_link_element = row.find('td').find('a')
-                if not WL_item_link_element:
-                    continue
-
-                WL_item_link = WL_item_link_element.get('href')
-                WL_item_image_url = get_high_res_image(WL_item_link)
-
-                # Simulate fetching grading information with placeholders
-                wishlist_items.append({
-                    'name': WL_item_name,
-                    'image': WL_item_image_url,
-                    'gradings': [
-                        {'grading_name': '9', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': WL_item_link},
-                        {'grading_name': '10', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': WL_item_link},
-                        {'grading_name': 'Ungraded', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': WL_item_link}
-                    ]
-                })
-
-            except Exception as e:
-                st.error(f"An unexpected error occurred while processing {WL_item_name}: {e}")
-                continue
-
-        return wishlist_items
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching wishlist data: {e}")
-        return None
-
 # Function to fetch high-resolution images
 def get_high_res_image(card_link):
     try:
@@ -192,7 +143,6 @@ def display_cards(cards, title):
                         <h4 style="font-size: 18px;">{grading['grading_name']}</h4>
                         <p style="font-size: 16px;">AUD: {grading['value_aud']}</p>
                         <p style="font-size: 16px;">JPY: {grading['value_jpy']}</p>
-                        <a href="{grading['link']}" target="_blank">View on PriceCharting</a>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
@@ -203,22 +153,12 @@ def display_cards(cards, title):
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Streamlit app setup
-st.title("PokéDan")
+st.markdown('<h1 style="color: yellow;">PokéDan</h1>', unsafe_allow_html=True)
 
-with st.sidebar:
-    collection_link = st.text_input("Enter the collection link:")
-    wishlist_link = st.text_input("Enter the wishlist link:")
+# Direct link for data
+collection_link = "https://www.pricecharting.com/offers?seller=yx5zdzzvnnhyvjeffskx64pus4&status=collection"
 
 # Display Collection
-if collection_link:
-    st.success(f"Your saved collection link: {collection_link}")
-    cards = get_pokemon_cards(collection_link)
-    if cards:
-        display_cards(cards, "Collection")
-
-# Display Wishlist
-if wishlist_link:
-    st.success(f"Your saved wishlist link: {wishlist_link}")
-    wishlist_items = get_wishlist_items(wishlist_link)
-    if wishlist_items:
-        display_cards(wishlist_items, "Wishlist")
+cards = get_pokemon_cards(collection_link)
+if cards:
+    display_cards(cards, "Collection")
