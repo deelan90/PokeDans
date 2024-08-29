@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 # Define the card display box size and styling
 card_container_style = """
     .card-container {
-        width: 100%;
+        width: 12.5%;
         max-width: 250px;
         margin: 10px;
         padding: 10px;
