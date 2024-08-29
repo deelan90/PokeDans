@@ -29,15 +29,19 @@ def get_exchange_rates():
     
     return rate_aud, rate_yen
 
-# Function to fetch the total value from the summary table
-def fetch_total_value(soup):
+# Function to fetch the total value and card count from the summary table
+def fetch_total_value_and_count(soup):
     summary_table = soup.find('table', id='summary')
     if summary_table:
         total_value_element = summary_table.find('td', class_='js-value js-price')
-        if total_value_element:
+        card_count_element = summary_table.find_all('td', class_='number')[1]  # Assuming the count is the second number
+
+        if total_value_element and card_count_element:
             total_value_usd = total_value_element.text.strip().replace('$', '').replace(',', '')
-            return float(total_value_usd)
-    return 0.0  # Return 0 if the value can't be found
+            card_count = card_count_element.text.strip()
+            return float(total_value_usd), int(card_count)
+    
+    return None, None  # Return None if the values can't be found
 
 # Function to fetch and display card images and prices
 def display_card_info(soup, rate_aud, rate_yen):
@@ -84,14 +88,15 @@ def main():
     # Get the exchange rates
     rate_aud, rate_yen = get_exchange_rates()
 
-    # Fetch and display the total collection value
-    total_value_usd = fetch_total_value(soup)
-    if total_value_usd:
+    # Fetch and display the total collection value and card count
+    total_value_usd, card_count = fetch_total_value_and_count(soup)
+    if total_value_usd is not None and card_count is not None:
         total_value_aud = total_value_usd * rate_aud
         total_value_yen = total_value_usd * rate_yen
         st.write(f"Total Collection Value: ${total_value_aud:,.2f} AUD / ¥{total_value_yen:,.0f} JPY", style="color: lightgray;")
+        st.write(f"Total Cards: {card_count}", style="color: lightgray;")
     else:
-        st.write("Total Collection Value: Not available", style="color: lightgray;")
+        st.write("Total Collection Value and Card Count: Not available", style="color: lightgray;")
     
     # Display the Pokémon cards and their grading values
     display_card_info(soup, rate_aud, rate_yen)
