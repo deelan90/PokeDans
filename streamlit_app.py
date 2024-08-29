@@ -1,71 +1,90 @@
-import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
+import streamlit as st
 from forex_python.converter import CurrencyRates
+from PIL import Image
+from io import BytesIO
 
-# Function to fetch and convert currency
-def fetch_and_convert_currency(usd_value):
+# Function to fetch high-resolution images
+def get_high_res_image(card_link):
+    try:
+        card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
+        card_page_response.raise_for_status()
+        card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
+
+        # Find the highest resolution image available
+        card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
+        return card_image_element.get('src') if card_image_element else None
+    except Exception as e:
+        st.error(f"Error fetching high-resolution image: {e}")
+        return None
+
+# Function to fetch the exchange rates
+def get_exchange_rates():
     c = CurrencyRates()
-    usd_value = float(usd_value.replace('$', '').replace(',', ''))
-    aud_value = c.convert('USD', 'AUD', usd_value)
-    jpy_value = c.convert('USD', 'JPY', usd_value)
-    return aud_value, jpy_value
+    rate_aud = c.get_rate('USD', 'AUD')
+    rate_yen = c.get_rate('USD', 'JPY')
+    return rate_aud, rate_yen
 
-# Function to scrape card data
-def scrape_card_data(url):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-    page = requests.get(url, headers=headers)
-    soup = BeautifulSoup(page.content, 'html.parser')
-
-    # Get total collection value
+# Function to fetch the total value from the summary table
+def fetch_total_value(soup):
     summary_table = soup.find('table', id='summary')
-    total_value_usd = summary_table.find('td', class_='number js-value js-price').text.strip()
-    aud_value, jpy_value = fetch_and_convert_currency(total_value_usd)
-    
-    # Get card details
+    total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
+    return float(total_value_usd)
+
+# Function to fetch and display card images and prices
+def display_card_info(soup, rate_aud, rate_yen):
+    card_elements = soup.select('div.panel.panel-default')
     card_data = []
-    cards = soup.select('.card')  # Adjust this to the correct class name
-    for card in cards:
-        title = card.select_one('.card-title').text.strip()
-        img_url = card.select_one('.card-image img')['src']
-        grading_info = card.select('.card-grading')  # Adjust this to the correct class name
-        
-        gradings = []
-        for grade in grading_info:
-            grade_name = grade.select_one('.grading-name').text.strip()
-            grade_value = grade.select_one('.grading-value').text.strip()
-            gradings.append(f"{grade_name}: {grade_value}")
-        
-        card_data.append({
-            'title': title,
-            'img_url': img_url,
-            'gradings': ' | '.join(gradings)
-        })
+    for card in card_elements:
+        title = card.select_one('h3').text.strip()
+        card_link = card.select_one('a')['href']
+        img_url = get_high_res_image(card_link)  # Use high-resolution image
 
-    return card_data, aud_value, jpy_value
-
-# Streamlit app layout
-def main():
-    st.title('PokéDan')
+        grade_rows = card.select('table tr')
+        
+        grading_info = []
+        for row in grade_rows:
+            cols = row.find_all('td')
+            if len(cols) >= 3:
+                grading_name = cols[2].text.strip()
+                price_usd = cols[0].text.strip().replace('$', '').replace(',', '')
+                if price_usd != 'N/A':
+                    price_aud = float(price_usd) * rate_aud
+                    price_yen = float(price_usd) * rate_yen
+                    grading_info.append((grading_name, price_aud, price_yen))
+        
+        card_data.append((title, img_url, grading_info))
     
-    # Scrape data
-    collection_url = st.text_input('Enter the link to your Pokémon card collection:')
-    if collection_url:
-        card_data, total_value_aud, total_value_jpy = scrape_card_data(collection_url)
-        
-        # Display total value
-        st.markdown(f"<p style='color: lightgray; font-size: 18px;'>Total Collection Value: ¥{total_value_jpy:,.2f} | ${total_value_aud:,.2f} AUD</p>", unsafe_allow_html=True)
-        
-        # Display cards
-        cols = st.columns(2)
-        for idx, card in enumerate(card_data):
-            with cols[idx % 2]:
-                st.image(card['img_url'], use_column_width=True)
-                st.markdown(f"**{card['title']}**")
-                st.markdown(f"<p style='font-size: 14px;'>{card['gradings']}</p>", unsafe_allow_html=True)
+    for title, img_url, grading_info in card_data:
+        st.image(img_url, caption=title, width=200)
+        for grading_name, price_aud, price_yen in grading_info:
+            st.write(f"**{grading_name}**: ${price_aud:,.2f} AUD / ¥{price_yen:,.0f} JPY")
+        st.write("---")
+
+# Main function to run the Streamlit app
+def main():
+    st.title("PokéDan")
+    st.write("### Pokémon Card Collection")
+    
+    # Fixed link to the Pokémon card collection
+    url = "https://www.pricecharting.com/offers?status=collection&seller=yx5zdzzvnnhyvjeffskx64pus4&sort=name&category=all&folder-id=&condition-id=all"
+    
+    # Fetch and parse the collection page
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    # Get the exchange rates
+    rate_aud, rate_yen = get_exchange_rates()
+
+    # Fetch and display the total collection value
+    total_value_usd = fetch_total_value(soup)
+    total_value_aud = total_value_usd * rate_aud
+    total_value_yen = total_value_usd * rate_yen
+    st.write(f"Total Collection Value: ${total_value_aud:,.2f} AUD / ¥{total_value_yen:,.0f} JPY", style="color: lightgray;")
+    
+    # Display the Pokémon cards and their grading values
+    display_card_info(soup, rate_aud, rate_yen)
 
 if __name__ == "__main__":
     main()
