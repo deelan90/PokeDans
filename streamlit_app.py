@@ -13,6 +13,9 @@ def fetch_total_value_and_count(soup):
         if not summary_table:
             raise ValueError("Summary table not found")
         
+        # Debugging line
+        st.write(f"Summary Table HTML: {summary_table}")
+
         total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
         total_value_usd = float(total_value_usd)
         
@@ -43,6 +46,7 @@ def display_card_info(soup, rate_aud, rate_yen):
         try:
             card_name_tag = card.find('p', class_='title')
             if not card_name_tag:
+                st.warning(f"Card HTML: {card}")  # Debugging line
                 st.warning("Card name tag not found, skipping entry.")
                 continue
             
