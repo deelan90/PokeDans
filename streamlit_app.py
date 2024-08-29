@@ -20,21 +20,15 @@ def get_pokemon_cards(collection_url):
         cards = {}
         for offer in table.find_all('tr', class_='offer'):
             try:
-                # Ensure the row is not a header or empty row
-                if 'data-offer-id' not in offer.attrs:
-                    continue
-
                 # Card name
                 card_name_element = offer.find('td', class_='meta')
                 if not card_name_element:
-                    st.warning("Card name element not found. Skipping this card.")
-                    st.code(str(offer))
+                    st.error("Card name element not found.")
                     continue
                 
                 card_name_tag = card_name_element.find('p', class_='title').find('a')
                 if not card_name_tag:
-                    st.warning("Card name tag not found. Skipping this card.")
-                    st.code(str(offer))
+                    st.error("Card name tag not found.")
                     continue
                 
                 card_name = card_name_tag.text.strip()
@@ -42,25 +36,21 @@ def get_pokemon_cards(collection_url):
                 # Card value in USD
                 card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                 if not card_value_element:
-                    st.warning(f"Card value element not found for {card_name}.")
+                    st.error(f"Card value element not found for {card_name}.")
                     continue
                 
                 card_value_usd = card_value_element.text.strip()
 
                 # Convert the value to AUD and JPY
-                try:
-                    conversion_rate_aud = 1.5  # Placeholder conversion rate, update to current rate
-                    conversion_rate_jpy = 150  # Placeholder conversion rate, update to current rate
-                    card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
-                    card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
-                except Exception as e:
-                    st.warning(f"Failed to convert currency for {card_name}: {e}")
-                    continue
+                conversion_rate_aud = 1.5  # Placeholder conversion rate, update to current rate
+                conversion_rate_jpy = 150  # Placeholder conversion rate, update to current rate
+                card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
+                card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
 
                 # Card link
                 card_link_element = offer.find('td', class_='photo').find('div').find('a')
                 if not card_link_element:
-                    st.warning(f"Card link element not found for {card_name}.")
+                    st.error(f"Card link element not found for {card_name}.")
                     continue
                 
                 card_link = card_link_element.get('href')
@@ -68,14 +58,14 @@ def get_pokemon_cards(collection_url):
                 # Fetch the high-resolution image
                 card_image_url = get_high_res_image(card_link) if card_link else None
 
-                # Extract the grading information from the includes column
-                grading_element = offer.find('td', class_='includes')
+                # Extract the selected grading option from the dropdown
+                grading_element = offer.find('td', class_='includes').find('select')
                 if not grading_element:
-                    st.warning(f"Grading element not found for {card_name}.")
-                    st.code(str(offer))
+                    st.error(f"Grading element not found for {card_name}.")
                     continue
 
-                grading_name = grading_element.text.strip() if grading_element else "Ungraded"
+                selected_option = grading_element.find('option', selected=True)
+                grading_name = selected_option.text.strip() if selected_option else "Ungraded"
 
                 # Organize data
                 if card_name not in cards:
@@ -115,44 +105,62 @@ def get_high_res_image(card_link):
         st.error(f"Error fetching high-resolution image: {e}")
         return None
 
+# Function to fetch wishlist items
+def get_wishlist_items(wishlist_url):
+    try:
+        response = requests.get(wishlist_url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        table = soup.find('table', id='games_table')
+        if not table:
+            st.error("Could not find the wishlist data table.")
+            return None
+
+        wishlist_items = []
+        for row in table.find_all('tr'):
+            try:
+                item_name_element = row.find('td', class_='console')
+                if not item_name_element:
+                    continue
+
+                item_name = item_name_element.text.strip()
+
+                item_link_element = row.find('td').find('a')
+                if not item_link_element:
+                    continue
+
+                item_link = item_link_element.get('href')
+                item_image_url = get_high_res_image(item_link)
+
+                # Adding grading information with placeholders for now
+                wishlist_items.append({
+                    'name': item_name,
+                    'image': item_image_url,
+                    'gradings': [
+                        {'grading_name': '9', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': item_link},
+                        {'grading_name': '10', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': item_link},
+                        {'grading_name': 'Ungraded', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': item_link}
+                    ]
+                })
+
+            except Exception as e:
+                st.error(f"An unexpected error occurred while processing {item_name}: {e}")
+                continue
+
+        return wishlist_items
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching wishlist data: {e}")
+        return None
+
 # Function to display the cards
-def display_cards(cards):
+def display_cards(cards, title):
     if not cards:
-        st.warning("No cards to display.")
+        st.warning(f"No {title.lower()} to display.")
         return
 
-    desktop_mode = st.sidebar.checkbox("Desktop View", value=True)
-    num_columns = 8 if desktop_mode else 2
-
-    st.markdown("""
-        <style>
-            .card-container {
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: space-around;
-            }
-            .card {
-                flex: 1 0 21%; /* 21% of the container's width for 8 columns */
-                margin: 10px;
-                text-align: center;
-            }
-            .card-image {
-                max-width: 100%;
-                border-radius: 10px;
-            }
-            .grading-container {
-                background-color: transparent;
-                padding: 8px;
-                border-radius: 8px;
-                margin-top: 10px;
-            }
-            @media (max-width: 1200px) {
-                .card {
-                    flex: 1 0 45%; /* 45% of the container's width for 2 columns */
-                }
-            }
-        </style>
-    """, unsafe_allow_html=True)
+    st.subheader(title)
+    st.markdown('<div class="card-container">', unsafe_allow_html=True)
 
     for card in cards:
         st.markdown(f"### {card['name']}")
@@ -181,6 +189,8 @@ def display_cards(cards):
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('<hr>', unsafe_allow_html=True)
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
 # Streamlit app setup
 st.title("PokéDan")
 
@@ -189,7 +199,13 @@ if collection_link:
     st.success(f"Your saved collection link: {collection_link}")
     cards = get_pokemon_cards(collection_link)
     if cards:
-        display_cards(cards)
+        display_cards(cards, "Collection")
     st.text_input("Enter the collection link:", value="", key="hidden", label_visibility="hidden")
 else:
     st.warning("Please enter a collection link to proceed.")
+
+# Display Wishlist
+wishlist_link = "https://www.pricecharting.com/wishlist?user=ym3hqoown5rn5kk7vymq5bjvfq"  # Replace with actual URL
+wishlist_items = get_wishlist_items(wishlist_link)
+if wishlist_items:
+    display_cards(wishlist_items, "Wishlist")
