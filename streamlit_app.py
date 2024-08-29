@@ -120,32 +120,32 @@ def get_wishlist_items(wishlist_url):
         wishlist_items = []
         for row in table.find_all('tr'):
             try:
-                item_name_element = row.find('td', class_='console')
-                if not item_name_element:
+                WL_item_name_element = row.find('td', class_='console')
+                if not WL_item_name_element:
                     continue
 
-                item_name = item_name_element.text.strip()
+                WL_item_name = WL_item_name_element.text.strip()
 
-                item_link_element = row.find('td').find('a')
-                if not item_link_element:
+                WL_item_link_element = row.find('td').find('a')
+                if not WL_item_link_element:
                     continue
 
-                item_link = item_link_element.get('href')
-                item_image_url = get_high_res_image(item_link)
+                WL_item_link = WL_item_link_element.get('href')
+                WL_item_image_url = get_high_res_image(WL_item_link)
 
                 # Adding grading information with placeholders for now
                 wishlist_items.append({
-                    'name': item_name,
-                    'image': item_image_url,
+                    'name': WL_item_name,
+                    'image': WL_item_image_url,
                     'gradings': [
-                        {'grading_name': '9', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': item_link},
-                        {'grading_name': '10', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': item_link},
-                        {'grading_name': 'Ungraded', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': item_link}
+                        {'grading_name': '9', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': WL_item_link},
+                        {'grading_name': '10', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': WL_item_link},
+                        {'grading_name': 'Ungraded', 'value_aud': '$XX.XX AUD', 'value_jpy': '¥XXXXX JPY', 'link': WL_item_link}
                     ]
                 })
 
             except Exception as e:
-                st.error(f"An unexpected error occurred while processing {item_name}: {e}")
+                st.error(f"An unexpected error occurred while processing {WL_item_name}: {e}")
                 continue
 
         return wishlist_items
