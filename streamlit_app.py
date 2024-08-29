@@ -24,13 +24,13 @@ st.markdown("""
 
 .pokemon-font {
     font-family: 'Flexo', sans-serif;
-    color: #FFCB05;
+    color: #080808;
     font-size: 18px;
     margin-bottom: 10px;
 }
 
 .card-grading {
-    background-color: #f5f5f5;
+    background-color: #080808;
     padding: 10px;
     margin-top: 10px;
     border-radius: 5px;
