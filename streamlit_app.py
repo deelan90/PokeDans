@@ -10,9 +10,14 @@ def fetch_and_convert_currency(usd_value, rate):
 def fetch_total_value_and_count(soup):
     try:
         summary_table = soup.find('table', id='summary')
+        if not summary_table:
+            raise ValueError("Summary table not found")
+        
         total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
         total_value_usd = float(total_value_usd)
+        
         card_count = int(summary_table.find_all('td', class_='number')[1].text.strip())
+        
         return total_value_usd, card_count
     except Exception as e:
         st.error(f"Error fetching total value and count: {e}")
@@ -35,26 +40,35 @@ def display_card_info(soup, rate_aud, rate_yen):
     cards = {}
     
     for card in soup.find_all('tr', class_='offer'):
-        card_name = card.find('p', class_='title').find('a').text.strip()
-        card_link = card.find('p', class_='title').find('a')['href']
-        card_image_url = get_high_res_image(card_link)
-        grading = card.find('td', class_='includes').text.strip()
-        usd_value = float(card.find('span', class_='js-price').text.strip().replace('$', ''))
-        aud_value = fetch_and_convert_currency(usd_value, rate_aud)
-        yen_value = fetch_and_convert_currency(usd_value, rate_yen)
-        
-        if card_name not in cards:
-            cards[card_name] = {
-                "image": card_image_url,
-                "gradings": []
-            }
-        
-        cards[card_name]["gradings"].append({
-            "grading": grading,
-            "usd": usd_value,
-            "aud": aud_value,
-            "yen": yen_value
-        })
+        try:
+            card_name_tag = card.find('p', class_='title')
+            if not card_name_tag:
+                st.warning("Card name tag not found, skipping entry.")
+                continue
+            
+            card_name = card_name_tag.find('a').text.strip()
+            card_link = card_name_tag.find('a')['href']
+            card_image_url = get_high_res_image(card_link)
+            grading = card.find('td', class_='includes').text.strip()
+            usd_value = float(card.find('span', class_='js-price').text.strip().replace('$', ''))
+            aud_value = fetch_and_convert_currency(usd_value, rate_aud)
+            yen_value = fetch_and_convert_currency(usd_value, rate_yen)
+            
+            if card_name not in cards:
+                cards[card_name] = {
+                    "image": card_image_url,
+                    "gradings": []
+                }
+            
+            cards[card_name]["gradings"].append({
+                "grading": grading,
+                "usd": usd_value,
+                "aud": aud_value,
+                "yen": yen_value
+            })
+        except Exception as e:
+            st.error(f"Error processing card entry: {e}")
+            continue
     
     for card_name, details in cards.items():
         st.image(details["image"], use_column_width=True)
@@ -78,6 +92,7 @@ def main():
     
     # Fetch total value and card count
     total_value_usd, card_count = fetch_total_value_and_count(soup)
+    
     # Fixed exchange rates as a workaround
     rate_aud = 1.30  # Example: 1 USD = 1.30 AUD
     rate_yen = 110.0  # Example: 1 USD = 110 YEN
