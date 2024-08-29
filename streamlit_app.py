@@ -2,80 +2,63 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 
-# Function to fetch and extract data from PriceCharting
 def get_pokemon_cards(collection_url):
     try:
         response = requests.get(collection_url)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
-
         table = soup.find('table', id='active')
         if not table:
             st.error("Could not find the card data table.")
             return None
-
         cards = {}
         for offer in table.find_all('tr', class_='offer'):
             try:
-                # Check if the card name exists
                 card_name_element = offer.find('td', class_='meta')
-                if card_name_element:
-                    card_name_tag = card_name_element.find('p', class_='title').find('a')
-                    if card_name_tag:
-                        card_name = card_name_tag.text.strip()
-                    else:
-                        st.warning("Card name tag not found for an offer. Skipping this card.")
-                        continue
-                else:
-                    st.warning("Card name element not found. Skipping this card.")
+                if not card_name_element:
                     continue
-
-                # Extract the card value
+                card_name_tag = card_name_element.find('p', class_='title').find('a')
+                if not card_name_tag:
+                    continue
+                card_name = card_name_tag.text.strip()
+                
                 card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                 if not card_value_element:
-                    st.warning(f"Card value element not found for {card_name}. Skipping this card.")
                     continue
                 card_value_usd = card_value_element.text.strip()
-
-                # Convert the value to AUD and JPY (using placeholders here)
-                conversion_rate_aud = 1.5  # Placeholder, replace with real-time conversion
-                conversion_rate_jpy = 150  # Placeholder, replace with real-time conversion
+                
+                conversion_rate_aud = 1.5  # Placeholder
+                conversion_rate_jpy = 150  # Placeholder
                 card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
                 card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
-
-                # Get the card image link
+                
                 card_link_element = offer.find('td', class_='photo').find('div').find('a')
                 card_link = card_link_element.get('href') if card_link_element else None
                 card_image_url = get_high_res_image(card_link) if card_link else None
-
-                # Extract the grading information
+                
                 grading_element = offer.find('td', class_='grade')
                 grading_name = grading_element.text.strip() if grading_element else "Ungraded"
-
+                
                 if card_name not in cards:
                     cards[card_name] = {
                         'name': card_name,
                         'image': card_image_url,
                         'gradings': []
                     }
-
                 cards[card_name]['gradings'].append({
                     'grading_name': grading_name,
                     'value_aud': card_value_aud,
                     'value_jpy': card_value_jpy,
                     'link': f"https://www.pricecharting.com{card_link}" if card_link else None
                 })
-
             except Exception as e:
                 st.error(f"An error occurred processing a card: {e}")
                 continue
-
         return list(cards.values())
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {e}")
         return None
 
-# Function to fetch high-resolution images
 def get_high_res_image(card_link):
     try:
         if not card_link:
@@ -89,7 +72,6 @@ def get_high_res_image(card_link):
         st.error(f"Error fetching high-resolution image: {e}")
         return None
 
-# Function to display cards in a dynamic layout
 def display_cards(cards):
     if cards:
         num_columns = 8 if st.sidebar.checkbox("Desktop View", value=True) else 2
@@ -104,7 +86,7 @@ def display_cards(cards):
                     max-height: 200px;
                 }
                 .grading-container {
-                    background-color: transparent;
+                    background-color: rgba(255, 255, 255, 0.1);
                     padding: 8px;
                     border-radius: 8px;
                     margin-top: 10px;
@@ -112,17 +94,20 @@ def display_cards(cards):
                 }
             </style>
             """, unsafe_allow_html=True)
-
+        
         for card in cards:
             st.markdown(f"### {card['name']}")
-            cols = st.columns(num_columns)
+            cols = st.columns([2] + [1] * (num_columns - 1))
+            
+            with cols[0]:
+                st.markdown("<div class='card-image-container'>", unsafe_allow_html=True)
+                if card['image']:
+                    st.image(card['image'], use_column_width=True)
+                else:
+                    st.write("Image not available")
+            
             for idx, grading in enumerate(card['gradings']):
-                with cols[idx % num_columns]:
-                    st.markdown("<div class='card-image-container'>", unsafe_allow_html=True)
-                    if card['image']:
-                        st.image(card['image'], use_column_width=True)  # Removed the 'class_' argument
-                    else:
-                        st.write("Image not available")
+                with cols[(idx % (num_columns - 1)) + 1]:
                     st.markdown(
                         f"<div class='grading-container'>"
                         f"<b style='font-size: 1.1em;'>{grading['grading_name']}</b><br>"
@@ -133,19 +118,15 @@ def display_cards(cards):
                         unsafe_allow_html=True
                     )
 
-# Streamlit app setup
 st.set_page_config(page_title="PokéDan", page_icon=":zap:", layout="wide")
 st.title("PokéDan")
 
-# Input for the collection URL
 collection_link = st.text_input("Enter the collection link:")
-
 if collection_link:
     st.success(f"Your saved collection link: {collection_link}")
     cards = get_pokemon_cards(collection_link)
     if cards:
         display_cards(cards)
-    # Clear the input field after processing
     st.text_input("Enter the collection link:", value="", key="hidden", label_visibility="hidden")
 else:
     st.warning("Please enter a collection link to proceed.")
