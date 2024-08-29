@@ -16,11 +16,19 @@ def get_pokemon_cards(collection_url):
             cards = {}
             for offer in table.find_all('tr', class_='offer'):
                 try:
-                    card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
-                    card_name = card_name_element.text.strip() if card_name_element else "Unknown Name"
+                    card_name_element = offer.find('td', class_='meta')
+                    if not card_name_element:
+                        st.error("Card name element not found.")
+                        continue
+
+                    card_name = card_name_element.find('p', class_='title').find('a').text.strip()
 
                     card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
-                    card_value_usd = card_value_element.text.strip() if card_value_element else "Unknown Value"
+                    if not card_value_element:
+                        st.error("Card value element not found.")
+                        continue
+
+                    card_value_usd = card_value_element.text.strip()
 
                     conversion_rate_aud = 1.5  # Replace with real-time conversion from xe.com
                     conversion_rate_jpy = 150  # Replace with real-time conversion from xe.com
@@ -79,22 +87,25 @@ def get_high_res_image(card_link):
 # Function to display cards in a dynamic layout
 def display_cards(cards):
     if cards:
+        num_columns = 8 if st.experimental_user_info().screen_width >= 1024 else 2
+        st.markdown("<style>.card-image-container { text-align: center; }</style>", unsafe_allow_html=True)
         for card in cards:
             st.markdown(f"### {card['name']}")
-            cols = st.columns(len(card['gradings']))
+            cols = st.columns(num_columns)
             for idx, grading in enumerate(card['gradings']):
-                with cols[idx]:
+                with cols[idx % num_columns]:
+                    st.markdown("<div class='card-image-container'>", unsafe_allow_html=True)
                     if card['image']:
                         st.image(card['image'], use_column_width=True)
                     else:
                         st.write("Image not available")
                     st.markdown(
-                        f"<div style='text-align: center; padding: 8px; background-color: rgba(255, 255, 255, 0.1); border-radius: 8px;'>"
-                        f"<b style='font-size: 1.2em;'>{grading['grading_name']}</b><br>"
+                        f"<div style='text-align: center; padding: 8px; border-radius: 8px; margin-top: 10px;'>"
+                        f"<b style='font-size: 1.1em;'>{grading['grading_name']}</b><br>"
                         f"AUD: {grading['value_aud']}<br>"
                         f"JPY: {grading['value_jpy']}<br>"
                         f"<a href='{grading['link']}' style='color: lightblue;'>View on PriceCharting</a>"
-                        f"</div>", 
+                        f"</div></div>", 
                         unsafe_allow_html=True
                     )
 
@@ -110,9 +121,7 @@ if collection_link:
     cards = get_pokemon_cards(collection_link)
     if cards:
         display_cards(cards)
+    # Clear the input field after processing
+    st.text_input("Enter the collection link:", value="", key="hidden", label_visibility="hidden")
 else:
     st.warning("Please enter a collection link to proceed.")
-
-# Hide the input field after submission
-if collection_link:
-    st.text_input("Enter the collection link:", value=collection_link, key="hidden", label_visibility="hidden")
