@@ -10,59 +10,67 @@ def get_pokemon_cards(collection_url):
         soup = BeautifulSoup(response.content, 'html.parser')
 
         table = soup.find('table', id='active')
-        if table:
-            cards = {}
-            for offer in table.find_all('tr', class_='offer'):
-                try:
-                    # Try to find the card name element
-                    card_name_element = offer.find('td', class_='meta')
-                    if card_name_element:
-                        card_name = card_name_element.find('p', class_='title').find('a').text.strip()
-                    else:
-                        st.error("Card name element not found.")
-                        continue
-
-                    # Extract the card value
-                    card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
-                    card_value_usd = card_value_element.text.strip() if card_value_element else "Unknown Value"
-
-                    # Convert the value to AUD and JPY (using placeholders here)
-                    conversion_rate_aud = 1.5  # Placeholder, replace with real-time conversion
-                    conversion_rate_jpy = 150  # Placeholder, replace with real-time conversion
-                    card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
-                    card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
-
-                    # Get the card image link
-                    card_link_element = offer.find('td', class_='photo').find('div').find('a')
-                    card_link = card_link_element.get('href') if card_link_element else None
-                    card_image_url = get_high_res_image(card_link) if card_link else None
-
-                    # Extract the grading information
-                    grading_element = offer.find('td', class_='grade')
-                    grading_name = grading_element.text.strip() if grading_element else "Ungraded"
-
-                    if card_name not in cards:
-                        cards[card_name] = {
-                            'name': card_name,
-                            'image': card_image_url,
-                            'gradings': []
-                        }
-
-                    cards[card_name]['gradings'].append({
-                        'grading_name': grading_name,
-                        'value_aud': card_value_aud,
-                        'value_jpy': card_value_jpy,
-                        'link': f"https://www.pricecharting.com{card_link}" if card_link else None
-                    })
-
-                except Exception as e:
-                    st.error(f"An error occurred processing a card: {e}")
-                    continue
-
-            return list(cards.values())
-        else:
+        if not table:
             st.error("Could not find the card data table.")
             return None
+
+        cards = {}
+        for offer in table.find_all('tr', class_='offer'):
+            try:
+                # Check if the card name exists
+                card_name_element = offer.find('td', class_='meta')
+                if card_name_element:
+                    card_name_tag = card_name_element.find('p', class_='title').find('a')
+                    if card_name_tag:
+                        card_name = card_name_tag.text.strip()
+                    else:
+                        st.warning("Card name tag not found for an offer.")
+                        continue
+                else:
+                    st.warning("Card name element not found.")
+                    continue
+
+                # Extract the card value
+                card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
+                if not card_value_element:
+                    st.warning(f"Card value element not found for {card_name}.")
+                    continue
+                card_value_usd = card_value_element.text.strip()
+
+                # Convert the value to AUD and JPY (using placeholders here)
+                conversion_rate_aud = 1.5  # Placeholder, replace with real-time conversion
+                conversion_rate_jpy = 150  # Placeholder, replace with real-time conversion
+                card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
+                card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+
+                # Get the card image link
+                card_link_element = offer.find('td', class_='photo').find('div').find('a')
+                card_link = card_link_element.get('href') if card_link_element else None
+                card_image_url = get_high_res_image(card_link) if card_link else None
+
+                # Extract the grading information
+                grading_element = offer.find('td', class_='grade')
+                grading_name = grading_element.text.strip() if grading_element else "Ungraded"
+
+                if card_name not in cards:
+                    cards[card_name] = {
+                        'name': card_name,
+                        'image': card_image_url,
+                        'gradings': []
+                    }
+
+                cards[card_name]['gradings'].append({
+                    'grading_name': grading_name,
+                    'value_aud': card_value_aud,
+                    'value_jpy': card_value_jpy,
+                    'link': f"https://www.pricecharting.com{card_link}" if card_link else None
+                })
+
+            except Exception as e:
+                st.error(f"An error occurred processing a card: {e}")
+                continue
+
+        return list(cards.values())
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {e}")
         return None
@@ -70,14 +78,13 @@ def get_pokemon_cards(collection_url):
 # Function to fetch high-resolution images
 def get_high_res_image(card_link):
     try:
+        if not card_link:
+            return None
         card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
         card_page_response.raise_for_status()
         card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
         card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
-        if card_image_element:
-            return card_image_element.get('src')
-        else:
-            return None
+        return card_image_element.get('src') if card_image_element else None
     except Exception as e:
         st.error(f"Error fetching high-resolution image: {e}")
         return None
@@ -94,12 +101,14 @@ def display_cards(cards):
                 .card-image {
                     border-radius: 10px;
                     margin-bottom: 15px;
+                    max-height: 200px;
                 }
                 .grading-container {
                     background-color: transparent;
                     padding: 8px;
                     border-radius: 8px;
                     margin-top: 10px;
+                    min-height: 80px;
                 }
             </style>
             """, unsafe_allow_html=True)
