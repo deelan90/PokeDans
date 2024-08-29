@@ -32,8 +32,12 @@ def get_exchange_rates():
 # Function to fetch the total value from the summary table
 def fetch_total_value(soup):
     summary_table = soup.find('table', id='summary')
-    total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
-    return float(total_value_usd)
+    if summary_table:
+        total_value_element = summary_table.find('td', class_='js-value js-price')
+        if total_value_element:
+            total_value_usd = total_value_element.text.strip().replace('$', '').replace(',', '')
+            return float(total_value_usd)
+    return 0.0  # Return 0 if the value can't be found
 
 # Function to fetch and display card images and prices
 def display_card_info(soup, rate_aud, rate_yen):
@@ -82,9 +86,12 @@ def main():
 
     # Fetch and display the total collection value
     total_value_usd = fetch_total_value(soup)
-    total_value_aud = total_value_usd * rate_aud
-    total_value_yen = total_value_usd * rate_yen
-    st.write(f"Total Collection Value: ${total_value_aud:,.2f} AUD / ¥{total_value_yen:,.0f} JPY", style="color: lightgray;")
+    if total_value_usd:
+        total_value_aud = total_value_usd * rate_aud
+        total_value_yen = total_value_usd * rate_yen
+        st.write(f"Total Collection Value: ${total_value_aud:,.2f} AUD / ¥{total_value_yen:,.0f} JPY", style="color: lightgray;")
+    else:
+        st.write("Total Collection Value: Not available", style="color: lightgray;")
     
     # Display the Pokémon cards and their grading values
     display_card_info(soup, rate_aud, rate_yen)
