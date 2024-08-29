@@ -1,8 +1,6 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-from PIL import Image
-from io import BytesIO
 
 # Function to fetch and extract data from PriceCharting
 def get_pokemon_cards(collection_url):
@@ -88,7 +86,24 @@ def get_high_res_image(card_link):
 def display_cards(cards):
     if cards:
         num_columns = 8 if st.sidebar.checkbox("Desktop View", value=True) else 2
-        st.markdown("<style>.card-image-container { text-align: center; }</style>", unsafe_allow_html=True)
+        st.markdown("""
+            <style>
+                .card-image-container {
+                    text-align: center;
+                }
+                .card-image {
+                    border-radius: 10px;
+                    margin-bottom: 15px;
+                }
+                .grading-container {
+                    background-color: transparent;
+                    padding: 8px;
+                    border-radius: 8px;
+                    margin-top: 10px;
+                }
+            </style>
+            """, unsafe_allow_html=True)
+
         for card in cards:
             st.markdown(f"### {card['name']}")
             cols = st.columns(num_columns)
@@ -96,16 +111,16 @@ def display_cards(cards):
                 with cols[idx % num_columns]:
                     st.markdown("<div class='card-image-container'>", unsafe_allow_html=True)
                     if card['image']:
-                        st.image(card['image'], use_column_width=True)
+                        st.image(card['image'], use_column_width=True, class_="card-image")
                     else:
                         st.write("Image not available")
                     st.markdown(
-                        f"<div style='text-align: center; padding: 8px; border-radius: 8px; margin-top: 10px;'>"
+                        f"<div class='grading-container'>"
                         f"<b style='font-size: 1.1em;'>{grading['grading_name']}</b><br>"
                         f"AUD: {grading['value_aud']}<br>"
                         f"JPY: {grading['value_jpy']}<br>"
                         f"<a href='{grading['link']}' style='color: lightblue;'>View on PriceCharting</a>"
-                        f"</div></div>", 
+                        f"</div>", 
                         unsafe_allow_html=True
                     )
 
