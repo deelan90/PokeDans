@@ -13,7 +13,7 @@ def get_pokemon_cards(collection_url):
 
         table = soup.find('table', id='active')
         if table:
-            cards = []
+            cards = {}
             for offer in table.find_all('tr', class_='offer'):
                 try:
                     card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
@@ -35,21 +35,25 @@ def get_pokemon_cards(collection_url):
                     grading_element = offer.find('td', class_='grade')
                     grading_name = grading_element.text.strip() if grading_element else "Ungraded"
 
-                    card_display = {
-                        'name': card_name,
+                    if card_name not in cards:
+                        cards[card_name] = {
+                            'name': card_name,
+                            'image': card_image_url,
+                            'gradings': []
+                        }
+
+                    cards[card_name]['gradings'].append({
+                        'grading_name': grading_name,
                         'value_aud': card_value_aud,
                         'value_jpy': card_value_jpy,
-                        'image': card_image_url,
-                        'grading_name': grading_name,
                         'link': f"https://www.pricecharting.com{card_link}" if card_link else None
-                    }
-                    cards.append(card_display)
+                    })
 
                 except Exception as e:
                     st.error(f"An error occurred processing a card: {e}")
                     continue
 
-            return cards
+            return list(cards.values())
         else:
             st.error("Could not find the card data table.")
             return None
@@ -75,15 +79,24 @@ def get_high_res_image(card_link):
 # Function to display cards in a dynamic layout
 def display_cards(cards):
     if cards:
-        cols = st.columns(8)  # Create 8 columns for the grid layout
-        for idx, card in enumerate(cards):
-            col = cols[idx % 8]  # Alternate between columns
-            with col:
-                st.image(card['image'], caption=card['name'], use_column_width=True)
-                st.write(f"**{card['grading_name']}**")
-                st.write(f"AUD: {card['value_aud']}")
-                st.write(f"JPY: {card['value_jpy']}")
-                st.markdown(f"[View on PriceCharting]({card['link']})")
+        for card in cards:
+            st.markdown(f"### {card['name']}")
+            cols = st.columns(len(card['gradings']))
+            for idx, grading in enumerate(card['gradings']):
+                with cols[idx]:
+                    if card['image']:
+                        st.image(card['image'], use_column_width=True)
+                    else:
+                        st.write("Image not available")
+                    st.markdown(
+                        f"<div style='text-align: center; padding: 8px; background-color: rgba(255, 255, 255, 0.1); border-radius: 8px;'>"
+                        f"<b style='font-size: 1.2em;'>{grading['grading_name']}</b><br>"
+                        f"AUD: {grading['value_aud']}<br>"
+                        f"JPY: {grading['value_jpy']}<br>"
+                        f"<a href='{grading['link']}' style='color: lightblue;'>View on PriceCharting</a>"
+                        f"</div>", 
+                        unsafe_allow_html=True
+                    )
 
 # Streamlit app setup
 st.set_page_config(page_title="PokéDan", page_icon=":zap:", layout="wide")
