@@ -46,16 +46,16 @@ body {
 .grading-card {
     background-color: #000;
     color: #FFF;
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 10px;
+    padding: 2px;
+    border-radius: 2px;
+    margin-bottom: 2px;
     width: 100%;
     box-sizing: border-box;
 }
 
 .grading-card h4 {
     font-weight: bold;
-    font-size: 14px;
+    font-size: 12px;
     margin: 0;
     text-align: center;
 }
