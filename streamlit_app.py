@@ -1,35 +1,8 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-
-# Define the card display box size and styling
-card_container_style = """
-    .card-container {
-        width: 12.5%;
-        max-width: 50px;
-        margin: 10px;
-        padding: 10px;
-        border-radius: 15px;
-        background-color: #111;
-        border-radius: 15px;
-        box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
-    }
-    .card-image {
-        width: 12.5%;
-        height: auto;
-        border-radius: 15px;
-    }
-    .grading-name {
-        font-size: 1.1em;
-        font-weight: bold;
-        margin-top: 10px;
-    }
-    .card-value {
-        font-size: 1em;
-        margin-top: 5px;
-    }
-"""
-st.markdown(f"<style>{card_container_style}</style>", unsafe_allow_html=True)
+from PIL import Image
+from io import BytesIO
 
 # Function to fetch and extract data from PriceCharting
 def get_pokemon_cards(collection_url):
@@ -40,7 +13,7 @@ def get_pokemon_cards(collection_url):
 
         table = soup.find('table', id='active')
         if table:
-            cards = []
+            cards = {}
             for offer in table.find_all('tr', class_='offer'):
                 try:
                     # Card name
@@ -51,15 +24,11 @@ def get_pokemon_cards(collection_url):
                     card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                     card_value_usd = card_value_element.text.strip() if card_value_element else "Unknown Value"
 
-                    # Convert the value to AUD and JPY
-                    conversion_rate_aud = 1.5  # Example conversion rate for AUD
-                    conversion_rate_jpy = 150  # Example conversion rate for JPY
-                    try:
-                        card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
-                        card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
-                    except ValueError:
-                        card_value_aud = "Unknown AUD Value"
-                        card_value_jpy = "Unknown JPY Value"
+                    # Convert the value to AUD and JPY using live data
+                    conversion_rate_aud = 1.5  # Example conversion rate, update to live data as needed
+                    conversion_rate_jpy = 150  # Example conversion rate, update to live data as needed
+                    card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
+                    card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
 
                     # Card link
                     card_link_element = offer.find('td', class_='photo').find('div').find('a')
@@ -69,19 +38,18 @@ def get_pokemon_cards(collection_url):
                     card_image_url = get_high_res_image(card_link) if card_link else None
 
                     # Grading name
-                    grading_name_element = offer.find_all('td')[2] if len(offer.find_all('td')) > 2 else None
-                    grading_name = grading_name_element.text.strip() if grading_name_element else "Ungraded"
+                    grading_name = offer.find_all('td')[2].text.strip()
 
-                    # Create the card display
-                    card_display = {
-                        'name': card_name,
+                    # Collate data under card name
+                    if card_name not in cards:
+                        cards[card_name] = []
+                    cards[card_name].append({
                         'grading_name': grading_name,
                         'value_aud': card_value_aud,
                         'value_jpy': card_value_jpy,
                         'image': card_image_url,
                         'link': f"https://www.pricecharting.com{card_link}" if card_link else None
-                    }
-                    cards.append(card_display)
+                    })
 
                 except Exception as e:
                     st.error(f"An error occurred processing a card: {e}")
@@ -110,29 +78,42 @@ def get_high_res_image(card_link):
         if card_image_element:
             return card_image_element.get('src')
         else:
+            st.error("Could not find high-resolution image.")
             return None
     except Exception as e:
+        st.error(f"Error fetching high-resolution image: {e}")
         return None
 
-# Display cards dynamically based on window size
+# Function to display cards
 def display_cards(cards):
     if cards:
-        cols = st.columns(3)  # Adjusts the layout dynamically
-        for idx, card in enumerate(cards):
-            col = cols[idx % len(cols)]  # Dynamically assigns cards to columns
-            with col:
-                st.markdown(f"<div class='card-container'>", unsafe_allow_html=True)
-                if card['image']:
-                    st.image(card['image'], use_column_width=True)
-                else:
-                    st.write("Image not available")
-                st.markdown(f"<div class='grading-name'>{card['grading_name']}</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='card-value'>AUD: {card['value_aud']}<br>JPY: {card['value_jpy']}</div>", unsafe_allow_html=True)
-                st.markdown(f"<a href='{card['link']}' target='_blank'>View on PriceCharting</a>", unsafe_allow_html=True)
-                st.markdown("</div>", unsafe_allow_html=True)
+        cols = st.columns(8)  # Create columns for dynamic layout
+
+        for card_name, card_details in cards.items():
+            for idx, card in enumerate(card_details):
+                col = cols[idx % 8]  # Alternate between columns
+                with col:
+                    st.markdown(f"<div style='border-radius: 10px; padding: 5px;'>", unsafe_allow_html=True)
+                    if card['image']:
+                        st.image(card['image'], caption=card_name, use_column_width=True)
+                    else:
+                        st.write("Image not available")
+
+                    for detail in card_details:
+                        st.markdown(
+                            f"<div style='background-color: black; color: white; border-radius: 5px; padding: 10px; margin-top: 5px;'>"
+                            f"<b>{detail['grading_name']}</b><br>"
+                            f"AUD: {detail['value_aud']}<br>"
+                            f"JPY: {detail['value_jpy']}</div>",
+                            unsafe_allow_html=True
+                        )
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+    else:
+        st.warning("No cards found or an error occurred. Please check the logs for more information.")
 
 # Streamlit app setup
-st.title("PokéDan")
+st.markdown(f"<h1 style='color: #FFCC00;'>PokéDan</h1>", unsafe_allow_html=True)
 
 # Input for the collection URL
 collection_link = st.text_input("Enter the collection link:")
