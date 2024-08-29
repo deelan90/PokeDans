@@ -44,9 +44,12 @@ def display_card_info(soup, rate_aud, rate_yen):
     
     for card in soup.find_all('tr', class_='offer'):
         try:
+            # Skip header rows
+            if card.find('th'):
+                continue
+
             card_name_tag = card.find('p', class_='title')
             if not card_name_tag:
-                st.warning(f"Card HTML: {card}")  # Debugging line
                 st.warning("Card name tag not found, skipping entry.")
                 continue
             
