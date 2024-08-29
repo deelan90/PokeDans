@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-from collections import defaultdict
 
 def get_pokemon_cards(collection_url):
     try:
@@ -12,9 +11,7 @@ def get_pokemon_cards(collection_url):
         if not table:
             st.error("Could not find the card data table.")
             return None
-        
-        cards = defaultdict(lambda: {'gradings': []})
-        
+        cards = {}
         for offer in table.find_all('tr', class_='offer'):
             try:
                 card_name_element = offer.find('td', class_='meta')
@@ -37,14 +34,28 @@ def get_pokemon_cards(collection_url):
                 
                 card_link_element = offer.find('td', class_='photo').find('div').find('a')
                 card_link = card_link_element.get('href') if card_link_element else None
+                card_image_url = get_high_res_image(card_link) if card_link else None
                 
+                # Updated grading extraction
                 grading_element = offer.find('td', class_='grade')
-                grading_name = grading_element.text.strip() if grading_element else "Ungraded"
+                if grading_element:
+                    grading_name = grading_element.text.strip()
+                    # Check if it's a graded card
+                    if grading_name in ['PSA', 'BGS', 'CGC']:
+                        grade_number = offer.find('td', class_='grade-number')
+                        if grade_number:
+                            grading_name += f" {grade_number.text.strip()}"
+                    elif grading_name == '':
+                        grading_name = "Ungraded"
+                else:
+                    grading_name = "Ungraded"
                 
-                if 'name' not in cards[card_name]:
-                    cards[card_name]['name'] = card_name
-                    cards[card_name]['image'] = get_high_res_image(card_link) if card_link else None
-                
+                if card_name not in cards:
+                    cards[card_name] = {
+                        'name': card_name,
+                        'image': card_image_url,
+                        'gradings': []
+                    }
                 cards[card_name]['gradings'].append({
                     'grading_name': grading_name,
                     'value_aud': card_value_aud,
@@ -54,11 +65,12 @@ def get_pokemon_cards(collection_url):
             except Exception as e:
                 st.error(f"An error occurred processing a card: {e}")
                 continue
-        
         return list(cards.values())
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {e}")
         return None
+
+# ... (rest of the code remains the same)
 
 def get_high_res_image(card_link):
     try:
