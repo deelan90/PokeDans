@@ -20,47 +20,64 @@ def get_pokemon_cards(collection_url):
         cards = {}
         for offer in table.find_all('tr', class_='offer'):
             try:
+                # Ensure the row is not a header or empty row
+                if 'data-offer-id' not in offer.attrs:
+                    continue
+
+                # Card name
                 card_name_element = offer.find('td', class_='meta')
                 if not card_name_element:
-                    st.error("Card name element not found.")
+                    st.warning("Card name element not found. Skipping this card.")
+                    st.code(str(offer))
                     continue
                 
                 card_name_tag = card_name_element.find('p', class_='title').find('a')
                 if not card_name_tag:
-                    st.error("Card name tag not found.")
+                    st.warning("Card name tag not found. Skipping this card.")
+                    st.code(str(offer))
                     continue
                 
                 card_name = card_name_tag.text.strip()
 
+                # Card value in USD
                 card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                 if not card_value_element:
-                    st.error(f"Card value element not found for {card_name}.")
+                    st.warning(f"Card value element not found for {card_name}.")
                     continue
                 
                 card_value_usd = card_value_element.text.strip()
 
-                conversion_rate_aud = 1.5  # Placeholder conversion rate, update to current rate
-                conversion_rate_jpy = 150  # Placeholder conversion rate, update to current rate
-                card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
-                card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+                # Convert the value to AUD and JPY
+                try:
+                    conversion_rate_aud = 1.5  # Placeholder conversion rate, update to current rate
+                    conversion_rate_jpy = 150  # Placeholder conversion rate, update to current rate
+                    card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
+                    card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+                except Exception as e:
+                    st.warning(f"Failed to convert currency for {card_name}: {e}")
+                    continue
 
+                # Card link
                 card_link_element = offer.find('td', class_='photo').find('div').find('a')
                 if not card_link_element:
-                    st.error(f"Card link element not found for {card_name}.")
+                    st.warning(f"Card link element not found for {card_name}.")
                     continue
                 
                 card_link = card_link_element.get('href')
 
+                # Fetch the high-resolution image
                 card_image_url = get_high_res_image(card_link) if card_link else None
 
-                grading_element = offer.find('td', class_='includes').find('select')
+                # Extract the grading information from the includes column
+                grading_element = offer.find('td', class_='includes')
                 if not grading_element:
-                    st.error(f"Grading element not found for {card_name}.")
+                    st.warning(f"Grading element not found for {card_name}.")
+                    st.code(str(offer))
                     continue
 
-                selected_option = grading_element.find('option', selected=True)
-                grading_name = selected_option.text.strip() if selected_option else "Ungraded"
+                grading_name = grading_element.text.strip() if grading_element else "Ungraded"
 
+                # Organize data
                 if card_name not in cards:
                     cards[card_name] = {
                         'name': card_name,
@@ -84,17 +101,21 @@ def get_pokemon_cards(collection_url):
         st.error(f"Error fetching data: {e}")
         return None
 
+# Function to fetch high-resolution images
 def get_high_res_image(card_link):
     try:
         card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
         card_page_response.raise_for_status()
         card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
+
+        # Find the highest resolution image available
         card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
         return card_image_element.get('src') if card_image_element else None
     except Exception as e:
         st.error(f"Error fetching high-resolution image: {e}")
         return None
 
+# Function to display the cards
 def display_cards(cards):
     if not cards:
         st.warning("No cards to display.")
@@ -111,7 +132,7 @@ def display_cards(cards):
                 justify-content: space-around;
             }
             .card {
-                flex: 1 0 21%;
+                flex: 1 0 21%; /* 21% of the container's width for 8 columns */
                 margin: 10px;
                 text-align: center;
             }
@@ -127,7 +148,7 @@ def display_cards(cards):
             }
             @media (max-width: 1200px) {
                 .card {
-                    flex: 1 0 45%;
+                    flex: 1 0 45%; /* 45% of the container's width for 2 columns */
                 }
             }
         </style>
@@ -137,12 +158,14 @@ def display_cards(cards):
         st.markdown(f"### {card['name']}")
         st.markdown('<div class="card-container">', unsafe_allow_html=True)
 
+        # Display card image once
         st.markdown(f"""
             <div class="card">
                 <img src="{card['image']}" class="card-image" alt="{card['name']}">
             </div>
         """, unsafe_allow_html=True)
 
+        # Display gradings
         for grading in card['gradings']:
             st.markdown(f"""
                 <div class="card">
@@ -157,85 +180,6 @@ def display_cards(cards):
 
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('<hr>', unsafe_allow_html=True)
-
-# Function to fetch wishlist items
-def get_wishlist_items(wishlist_url):
-    try:
-        response = requests.get(wishlist_url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'html.parser')
-
-        wishlist_items = []
-        table = soup.find('table', id='games_table')
-        if not table:
-            st.error("Could not find the wishlist data table.")
-            return None
-
-        for row in table.find_all('tr')[1:]:
-            try:
-                item_name_element = row.find('td', class_='console')
-                item_link_element = row.find('a')
-                if not item_name_element or not item_link_element:
-                    continue
-
-                item_name = item_name_element.text.strip()
-                item_link = item_link_element.get('href')
-
-                wishlist_items.append({
-                    'name': item_name,
-                    'link': item_link
-                })
-            except Exception as e:
-                st.error(f"An error occurred processing a wishlist item: {e}")
-                continue
-
-        return wishlist_items
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching wishlist data: {e}")
-        return None
-
-def display_wishlist_items(wishlist_items):
-    if not wishlist_items:
-        st.warning("No wishlist items to display.")
-        return
-
-    st.markdown("## Wishlist")
-    st.markdown('<div class="card-container">', unsafe_allow_html=True)
-
-    for item in wishlist_items:
-        st.markdown(f"### {item['name']}")
-        st.markdown('<div class="card-container">', unsafe_allow_html=True)
-
-        item_page = requests.get(f"https://www.pricecharting.com{item['link']}")
-        item_page_soup = BeautifulSoup(item_page.content, 'html.parser')
-
-        # Get image
-        item_image_element = item_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
-        item_image_url = item_image_element.get('src') if item_image_element else None
-
-        # Display image
-        if item_image_url:
-            st.markdown(f"""
-                <div class="card">
-                    <img src="{item_image_url}" class="card-image" alt="{item['name']}">
-                </div>
-            """, unsafe_allow_html=True)
-
-        # Display grades 9, 10, and ungraded
-        grades = ['9', '10', 'Ungraded']
-        for grade in grades:
-            st.markdown(f"""
-                <div class="card">
-                    <div class="grading-container">
-                        <h4 style="font-size: 18px;">{grade}</h4>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('<hr>', unsafe_allow_html=True)
 
 # Streamlit app setup
 st.title("PokéDan")
