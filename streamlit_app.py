@@ -33,7 +33,7 @@ def get_pokemon_cards(collection_url):
                 # Extract the card value
                 card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                 if not card_value_element:
-                    st.warning(f"Card value element not found for {card_name}.")
+                    st.warning(f"Card value element not found for {card_name}. Skipping this card.")
                     continue
                 card_value_usd = card_value_element.text.strip()
 
