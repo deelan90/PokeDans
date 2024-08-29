@@ -85,7 +85,7 @@ def get_pokemon_cards(collection_url):
             for offer in table.find_all('tr', class_='offer'):
                 try:
                     # Card name
-                    card_name_element = offer.find('td', class_='meta').find('p', class='title').find('a')
+                    card_name_element = offer.find('td', class_='meta').find('p', class_='title').find('a')
                     if not card_name_element:
                         continue
                     card_name = card_name_element.text.strip()
