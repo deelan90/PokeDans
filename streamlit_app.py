@@ -1,47 +1,19 @@
-import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
+import streamlit as st
 from forex_python.converter import CurrencyRates
 
 # Function to fetch and convert currency
-def fetch_and_convert_currency(usd_value):
-    c = CurrencyRates()
-    try:
-        rate_aud = c.get_rate('USD', 'AUD')
-        rate_yen = c.get_rate('USD', 'JPY')
-    except Exception as e:
-        st.error(f"Error fetching currency rates: {e}")
-        rate_aud = None
-        rate_yen = None
+def fetch_and_convert_currency(usd_value, rate):
+    return usd_value * rate
 
-    if rate_aud and rate_yen:
-        value_aud = float(usd_value) * rate_aud
-        value_yen = float(usd_value) * rate_yen
-        return value_aud, value_yen
-    else:
-        return None, None
-
-# Function to fetch the total value and count of cards
+# Function to fetch total collection value and card count
 def fetch_total_value_and_count(soup):
     try:
-        summary_table = soup.find('table', {'id': 'summary'})
-        if summary_table:
-            total_value_usd = summary_table.find('td', class_='js-value js-price')
-            if total_value_usd:
-                total_value_usd = total_value_usd.text.strip().replace('$', '').replace(',', '')
-            else:
-                total_value_usd = None
-
-            card_count = summary_table.find_all('td', class_='number')
-            if card_count:
-                card_count = card_count[-1].text.strip()
-            else:
-                card_count = None
-
-            return total_value_usd, card_count
-        else:
-            return None, None
+        summary_table = soup.find('table', id='summary')
+        total_value_usd = float(summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', ''))
+        card_count = int(summary_table.find_all('td', class_='number')[1].text.strip())
+        return total_value_usd, card_count
     except Exception as e:
         st.error(f"Error fetching total value and count: {e}")
         return None, None
@@ -60,77 +32,65 @@ def get_high_res_image(card_link):
 
 # Function to display card information
 def display_card_info(soup, rate_aud, rate_yen):
-    card_rows = soup.find_all('tr', class_='offer')
+    cards = {}
     
-    for card in card_rows:
-        title_element = card.find('p', class_='title')
-        card_name = title_element.find('a').text.strip() if title_element else "No name found"
+    for card in soup.find_all('tr', class_='offer'):
+        card_name = card.find('p', class_='title').find('a').text.strip()
+        card_link = card.find('p', class_='title').find('a')['href']
+        card_image_url = get_high_res_image(card_link)
+        grading = card.find('td', class_='includes').text.strip()
+        usd_value = float(card.find('span', class_='js-price').text.strip().replace('$', ''))
+        aud_value = fetch_and_convert_currency(usd_value, rate_aud)
+        yen_value = fetch_and_convert_currency(usd_value, rate_yen)
         
-        grading_element = card.find('td', class_='includes')
-        grading = grading_element.text.strip() if grading_element else "Ungraded"
+        if card_name not in cards:
+            cards[card_name] = {
+                "image": card_image_url,
+                "gradings": []
+            }
         
-        price_element = card.find('span', class_='js-price')
-        price_usd = price_element.text.strip().replace('$', '').replace(',', '') if price_element else "0.00"
+        cards[card_name]["gradings"].append({
+            "grading": grading,
+            "usd": usd_value,
+            "aud": aud_value,
+            "yen": yen_value
+        })
+    
+    for card_name, details in cards.items():
+        st.image(details["image"], use_column_width=True)
+        st.markdown(f"**{card_name}**")
         
-        card_link_tag = card.find('a')
-        card_link = card_link_tag['href'] if card_link_tag else None
-        
-        if card_link:
-            img_url = get_high_res_image(card_link)
-            st.image(img_url, use_column_width=True)
-        
-        st.markdown(f"### {card_name}")
-        st.markdown(f"**Grading**: {grading}")
-        st.markdown(f"**USD**: ${price_usd}")
-        
-        if rate_aud and rate_yen:
-            value_aud = float(price_usd) * rate_aud
-            value_yen = float(price_usd) * rate_yen
-            st.markdown(f"**AUD**: ${value_aud:.2f}")
-            st.markdown(f"**YEN**: ¥{value_yen:.2f}")
-        st.markdown("---")
+        for grading_info in details["gradings"]:
+            st.markdown(f"**Grading:** {grading_info['grading']}")
+            st.markdown(f"USD: ${grading_info['usd']:.2f}")
+            st.markdown(f"AUD: ${grading_info['aud']:.2f}")
+            st.markdown(f"YEN: ¥{grading_info['yen']:.2f}")
+            st.markdown("---")
 
-# Main app function
+# Main function
 def main():
-    st.markdown(
-        """
-        <style>
-        @font-face {
-            font-family: "Pokémon";
-            src: url("path_to_your_font_file");
-        }
-        h1 {
-            font-family: "Pokémon", sans-serif;
-            color: #FFCC00;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <h1 style='text-align: center; font-family: "Pokémon"; color: #FFCC00;'>PokéDan</h1>
-        """,
-        unsafe_allow_html=True,
-    )
-
+    st.markdown("<h1 style='text-align: center; font-family: Pokemon; color: #FFCC00;'>PokéDan</h1>", unsafe_allow_html=True)
+    
     url = "https://www.pricecharting.com/offers?status=collection&seller=yx5zdzzvnnhyvjeffskx64pus4&sort=name&category=all&folder-id=&condition-id=all"
+    
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
-
+    
+    # Fetch total value and card count
     total_value_usd, card_count = fetch_total_value_and_count(soup)
+    c = CurrencyRates()
+    rate_aud = c.get_rate('USD', 'AUD')
+    rate_yen = c.get_rate('USD', 'JPY')
     
-    if total_value_usd:
-        rate_aud, rate_yen = fetch_and_convert_currency(total_value_usd)
-        st.markdown(f"### Total Collection Value: ${total_value_usd} USD")
-        if rate_aud and rate_yen:
-            st.markdown(f"### Total Collection Value: ${rate_aud:.2f} AUD / ¥{rate_yen:.2f} JPY")
-        st.markdown(f"### Total Cards in Collection: {card_count}")
+    if total_value_usd and card_count:
+        total_value_aud = fetch_and_convert_currency(total_value_usd, rate_aud)
+        total_value_yen = fetch_and_convert_currency(total_value_usd, rate_yen)
+        st.markdown(f"<p style='text-align: center; color: lightgray;'>Total Collection Value: ${total_value_usd:.2f} USD / ${total_value_aud:.2f} AUD / ¥{total_value_yen:.2f} YEN</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; color: lightgray;'>Total Cards: {card_count}</p>", unsafe_allow_html=True)
     else:
-        st.markdown("### Total Collection Value: Not available")
-        rate_aud, rate_yen = None, None
-    
+        st.markdown("<p style='text-align: center; color: lightgray;'>Total Collection Value: Not available</p>", unsafe_allow_html=True)
+
+    # Display card info
     display_card_info(soup, rate_aud, rate_yen)
 
 if __name__ == "__main__":
