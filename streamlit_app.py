@@ -86,38 +86,69 @@ def get_high_res_image(card_link):
         return None
 
 def display_cards(cards):
-    if cards:
-        num_columns = 8 if st.sidebar.checkbox("Desktop View", value=True) else 2
-        st.markdown("""
-            <style>
-                .card-image-container { text-align: center; }
-                .card-image { border-radius: 10px; margin-bottom: 15px; max-height: 200px; }
-                .grading-container { background-color: rgba(255,255,255,0.1); padding: 8px; border-radius: 8px; margin-top: 10px; }
-            </style>
+    if not cards:
+        st.warning("No cards to display.")
+        return
+
+    desktop_mode = st.sidebar.checkbox("Desktop View", value=True)
+    num_columns = 6 if desktop_mode else 2
+
+    st.markdown("""
+        <style>
+            .card-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-around;
+            }
+            .card {
+                width: calc(100% / 6 - 20px);
+                margin: 10px;
+                text-align: center;
+            }
+            .card-image {
+                max-width: 100%;
+                border-radius: 10px;
+            }
+            .grading-container {
+                background-color: #f0f0f0;
+                padding: 8px;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            @media (max-width: 1200px) {
+                .card {
+                    width: calc(100% / 2 - 20px);
+                }
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    for card in cards:
+        st.markdown(f"### {card['name']}")
+        st.markdown('<div class="card-container">', unsafe_allow_html=True)
+
+        # Display card image once
+        st.markdown(f"""
+            <div class="card">
+                <img src="{card['image']}" class="card-image" alt="{card['name']}">
+            </div>
+        """, unsafe_allow_html=True)
+
+        # Display gradings
+        for grading in card['gradings']:
+            st.markdown(f"""
+                <div class="card">
+                    <div class="grading-container">
+                        <h4>{grading['grading_name']}</h4>
+                        <p>AUD: {grading['value_aud']}</p>
+                        <p>JPY: {grading['value_jpy']}</p>
+                        <a href="{grading['link']}" target="_blank">View on PriceCharting</a>
+                    </div>
+                </div>
             """, unsafe_allow_html=True)
-        
-        for card in cards:
-            st.markdown(f"### {card['name']}")
-            cols = st.columns([2] + [1] * (num_columns - 1))
-            
-            with cols[0]:
-                st.markdown("<div class='card-image-container'>", unsafe_allow_html=True)
-                if card['image']:
-                    st.image(card['image'], use_column_width=True)
-                else:
-                    st.write("Image not available")
-            
-            for idx, grading in enumerate(card['gradings']):
-                with cols[(idx % (num_columns - 1)) + 1]:
-                    st.markdown(
-                        f"<div class='grading-container'>"
-                        f"<b style='font-size: 1.1em;'>{grading['grading_name']}</b><br>"
-                        f"AUD: {grading['value_aud']}<br>"
-                        f"JPY: {grading['value_jpy']}<br>"
-                        f"<a href='{grading['link']}' style='color: lightblue;'>View on PriceCharting</a>"
-                        f"</div>", 
-                        unsafe_allow_html=True
-                    )
+
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<hr>', unsafe_allow_html=True)
 
 # Streamlit app setup
 st.set_page_config(page_title="PokéDan", page_icon=":zap:", layout="wide")
