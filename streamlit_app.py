@@ -86,22 +86,47 @@ def get_high_res_image(card_link):
         st.error(f"Error fetching high-resolution image: {e}")
         return None
 
-# Fetch and display the data in a grid layout
+# Define the card display box size and styling
+card_container_style = """
+    .card-container {
+        width: 100%;
+        max-width: 250px;
+        margin: 10px;
+        padding: 10px;
+        border-radius: 15px;
+        background-color: #111;
+        box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
+    }
+    .card-image {
+        width: 100%;
+        height: auto;
+        border-radius: 15px;
+    }
+    .grading-name {
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-top: 10px;
+    }
+    .card-value {
+        font-size: 1em;
+        margin-top: 5px;
+    }
+"""
+st.markdown(f"<style>{card_container_style}</style>", unsafe_allow_html=True)
+
+# Display cards dynamically based on window size
 def display_cards(cards):
     if cards:
-        cols = st.columns(len(cards))  # Dynamically adjust number of columns based on number of cards
+        cols = st.columns(3)  # Adjusts the layout dynamically
         for idx, card in enumerate(cards):
-            col = cols[idx % len(cols)]  # Alternate between columns
+            col = cols[idx % len(cols)]  # Dynamically assigns cards to columns
             with col:
-                st.image(card['image'], caption=card['name'], use_column_width=True)
-                for grade in card['grades']:
-                    st.markdown(
-                        f"<div style='background-color: black; border-radius: 8px; padding: 10px; color: white;'>"
-                        f"<strong>{grade['grading_name']}</strong><br>"
-                        f"AUD: {grade['value_aud']}<br>"
-                        f"JPY: {grade['value_jpy']}<br>"
-                        f"<a href='{grade['link']}' style='color: white;'>View on PriceCharting</a>"
-                        f"</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card-container'>", unsafe_allow_html=True)
+                st.image(card['image'], use_column_width=True, class_="card-image")
+                st.markdown(f"<div class='grading-name'>{card['grading_name']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card-value'>AUD: {card['value_aud']}<br>JPY: {card['value_jpy']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<a href='{card['link']}' target='_blank'>View on PriceCharting</a>", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
 
 # Streamlit app setup
 st.title("PokéDan")
