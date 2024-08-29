@@ -24,10 +24,10 @@ def get_pokemon_cards(collection_url):
                     if card_name_tag:
                         card_name = card_name_tag.text.strip()
                     else:
-                        st.warning("Card name tag not found for an offer.")
+                        st.warning("Card name tag not found for an offer. Skipping this card.")
                         continue
                 else:
-                    st.warning("Card name element not found.")
+                    st.warning("Card name element not found. Skipping this card.")
                     continue
 
                 # Extract the card value
