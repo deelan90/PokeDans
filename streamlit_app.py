@@ -9,63 +9,10 @@ logging.basicConfig(level=logging.DEBUG)
 # Custom CSS for Pokémon-style font and page title
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Flexo:wght@700&display=swap');
-
-body {
-    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-}
-
-.pokemon-title {
-    font-family: 'Flexo', sans-serif;
-    font-size: 48px;
-    font-weight: 700;
-    color: #FFCB05;
-    letter-spacing: 2px;
-    padding: 20px;
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.pokemon-font {
-    font-family: 'Flexo', sans-serif;
-    color: #FFCB05;
-    font-size: 18px;
-    margin-bottom: 10px;
-}
-
-.card-container {
-    border: 1px solid #FFCB05;
-    border-radius: 10px;
-    padding: 10px;
-    margin-top: 10px;
-    background-color: #f8f8f8;
-}
-
-.card-image {
-    max-width: 100%;
-    height: auto;
-}
-
-.card-grading {
-    border: 1px solid #FFCB05;
-    border-radius: 10px;
-    padding: 5px;
-    margin-top: 5px;
-    background-color: #ffffff;
-}
-
-.page-title {
-    font-family: 'Flexo', sans-serif;
-    font-size: 64px;
-    font-weight: 700;
-    color: #FFCB05;
-    text-align: center;
-    margin-bottom: 20px;
-}
+/* Custom styling for the PokéDan app */
 </style>
 """, unsafe_allow_html=True)
 
-# Function to fetch high-resolution images
 def get_high_res_image(card_link):
     try:
         card_page_response = requests.get(card_link)
@@ -81,7 +28,6 @@ def get_high_res_image(card_link):
         logging.error(f"Error fetching high-resolution image: {e}")
         return None
 
-# Function to fetch and extract data from PriceCharting
 def get_pokemon_cards(collection_url):
     try:
         response = requests.get(collection_url)
@@ -105,11 +51,7 @@ def get_pokemon_cards(collection_url):
                 
                 # Grading name
                 grading_element = offer.find_all('td')[2].find('p')
-                if not grading_element:
-                    logging.error(f"Grading element not found for card: {card_name}")
-                    grading_name = "Ungraded"
-                else:
-                    grading_name = grading_element.text.strip()
+                grading_name = grading_element.text.strip() if grading_element else "Ungraded"
                 
                 # Card value
                 price_element = offer.find('span', class_='js-price')
@@ -130,11 +72,7 @@ def get_pokemon_cards(collection_url):
                 
                 # Card link
                 card_link_element = offer.find('a', class_='item-link')
-                if not card_link_element:
-                    logging.error(f"Card link element not found for card: {card_name}")
-                    card_link = None
-                else:
-                    card_link = f"https://www.pricecharting.com{card_link_element['href']}"
+                card_link = f"https://www.pricecharting.com{card_link_element['href']}" if card_link_element else None
                 
                 # Update or create card entry
                 if card_name in cards:
@@ -171,7 +109,6 @@ def get_pokemon_cards(collection_url):
         logging.error(f"An unexpected error occurred: {e}")
         return None
 
-# Function to display the cards in Streamlit
 def display_cards(cards):
     if cards:
         cols = st.columns(2)  # Create two columns for the grid layout
@@ -193,13 +130,11 @@ def display_cards(cards):
 # Streamlit app setup
 st.markdown("<h1 class='page-title'>PokéDan</h1>", unsafe_allow_html=True)
 
-# Input for the collection URL
 collection_link = st.text_input("Enter the collection link:")
 if collection_link:
     st.success(f"Your saved collection link: {collection_link}")
     cards = get_pokemon_cards(collection_link)
     if cards:
-        # Fetch high-res images
         for card_name, card_data in cards.items():
             if card_data['link']:
                 card_data['image'] = get_high_res_image(card_data['link'])
@@ -209,6 +144,5 @@ if collection_link:
 else:
     st.warning("Please enter a collection link to proceed.")
 
-# Hide the input field after submission
 if collection_link:
     st.text_input("Enter the collection link:", value=collection_link, key="hidden", label_visibility="hidden")
