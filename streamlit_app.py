@@ -55,7 +55,7 @@ body {
 
 .grading-card h4 {
     font-weight: bold;
-    font-size: 12px;
+    font-size: 25px;
     margin: 0;
     text-align: center;
 }
