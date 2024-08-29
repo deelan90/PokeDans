@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 # Set the page configuration
 st.set_page_config(page_title="PokéDan", page_icon=":zap:", layout="wide")
 
-# Function to fetch and extract data from PriceCharting
+# Function to fetch and extract data from PriceCharting for collection
 def get_pokemon_cards(collection_url):
     try:
         response = requests.get(collection_url)
@@ -20,15 +20,21 @@ def get_pokemon_cards(collection_url):
         cards = {}
         for offer in table.find_all('tr', class_='offer'):
             try:
+                # Ensure the row is not a header or empty row
+                if 'data-offer-id' not in offer.attrs:
+                    continue
+
                 # Card name
                 card_name_element = offer.find('td', class_='meta')
                 if not card_name_element:
-                    st.error("Card name element not found.")
+                    st.warning("Card name element not found. Skipping this card.")
+                    st.code(str(offer))
                     continue
                 
                 card_name_tag = card_name_element.find('p', class_='title').find('a')
                 if not card_name_tag:
-                    st.error("Card name tag not found.")
+                    st.warning("Card name tag not found. Skipping this card.")
+                    st.code(str(offer))
                     continue
                 
                 card_name = card_name_tag.text.strip()
@@ -36,21 +42,25 @@ def get_pokemon_cards(collection_url):
                 # Card value in USD
                 card_value_element = offer.find('td', class_='price').find('span', class_='js-price')
                 if not card_value_element:
-                    st.error(f"Card value element not found for {card_name}.")
+                    st.warning(f"Card value element not found for {card_name}.")
                     continue
                 
                 card_value_usd = card_value_element.text.strip()
 
                 # Convert the value to AUD and JPY
-                conversion_rate_aud = 1.5  # Placeholder conversion rate, update to current rate
-                conversion_rate_jpy = 150  # Placeholder conversion rate, update to current rate
-                card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
-                card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+                try:
+                    conversion_rate_aud = 1.5  # Placeholder conversion rate, update to current rate
+                    conversion_rate_jpy = 150  # Placeholder conversion rate, update to current rate
+                    card_value_aud = f"${float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_aud:.2f} AUD"
+                    card_value_jpy = f"¥{float(card_value_usd.replace('$', '').replace(',', '')) * conversion_rate_jpy:.2f} JPY"
+                except Exception as e:
+                    st.warning(f"Failed to convert currency for {card_name}: {e}")
+                    continue
 
                 # Card link
                 card_link_element = offer.find('td', class_='photo').find('div').find('a')
                 if not card_link_element:
-                    st.error(f"Card link element not found for {card_name}.")
+                    st.warning(f"Card link element not found for {card_name}.")
                     continue
                 
                 card_link = card_link_element.get('href')
@@ -58,14 +68,14 @@ def get_pokemon_cards(collection_url):
                 # Fetch the high-resolution image
                 card_image_url = get_high_res_image(card_link) if card_link else None
 
-                # Extract the selected grading option from the dropdown
-                grading_element = offer.find('td', class_='includes').find('select')
+                # Extract the grading information from the includes column
+                grading_element = offer.find('td', class_='includes')
                 if not grading_element:
-                    st.error(f"Grading element not found for {card_name}.")
+                    st.warning(f"Grading element not found for {card_name}.")
+                    st.code(str(offer))
                     continue
 
-                selected_option = grading_element.find('option', selected=True)
-                grading_name = selected_option.text.strip() if selected_option else "Ungraded"
+                grading_name = grading_element.text.strip() if grading_element else "Ungraded"
 
                 # Organize data
                 if card_name not in cards:
@@ -91,21 +101,7 @@ def get_pokemon_cards(collection_url):
         st.error(f"Error fetching data: {e}")
         return None
 
-# Function to fetch high-resolution images
-def get_high_res_image(card_link):
-    try:
-        card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
-        card_page_response.raise_for_status()
-        card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
-
-        # Find the highest resolution image available
-        card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
-        return card_image_element.get('src') if card_image_element else None
-    except Exception as e:
-        st.error(f"Error fetching high-resolution image: {e}")
-        return None
-
-# Function to fetch wishlist items
+# Function to fetch and extract data from PriceCharting for wishlist
 def get_wishlist_items(wishlist_url):
     try:
         response = requests.get(wishlist_url)
@@ -120,6 +116,7 @@ def get_wishlist_items(wishlist_url):
         wishlist_items = []
         for row in table.find_all('tr'):
             try:
+                # Ensure the row contains wishlist data
                 WL_item_name_element = row.find('td', class_='console')
                 if not WL_item_name_element:
                     continue
@@ -133,7 +130,7 @@ def get_wishlist_items(wishlist_url):
                 WL_item_link = WL_item_link_element.get('href')
                 WL_item_image_url = get_high_res_image(WL_item_link)
 
-                # Adding grading information with placeholders for now
+                # Simulate fetching grading information with placeholders
                 wishlist_items.append({
                     'name': WL_item_name,
                     'image': WL_item_image_url,
@@ -151,6 +148,20 @@ def get_wishlist_items(wishlist_url):
         return wishlist_items
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching wishlist data: {e}")
+        return None
+
+# Function to fetch high-resolution images
+def get_high_res_image(card_link):
+    try:
+        card_page_response = requests.get(f"https://www.pricecharting.com{card_link}")
+        card_page_response.raise_for_status()
+        card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
+
+        # Find the highest resolution image available
+        card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
+        return card_image_element.get('src') if card_image_element else None
+    except Exception as e:
+        st.error(f"Error fetching high-resolution image: {e}")
         return None
 
 # Function to display the cards
@@ -194,18 +205,20 @@ def display_cards(cards, title):
 # Streamlit app setup
 st.title("PokéDan")
 
-collection_link = st.text_input("Enter the collection link:")
+with st.sidebar:
+    collection_link = st.text_input("Enter the collection link:")
+    wishlist_link = st.text_input("Enter the wishlist link:")
+
+# Display Collection
 if collection_link:
     st.success(f"Your saved collection link: {collection_link}")
     cards = get_pokemon_cards(collection_link)
     if cards:
         display_cards(cards, "Collection")
-    st.text_input("Enter the collection link:", value="", key="hidden", label_visibility="hidden")
-else:
-    st.warning("Please enter a collection link to proceed.")
 
 # Display Wishlist
-wishlist_link = "https://www.pricecharting.com/wishlist?user=ym3hqoown5rn5kk7vymq5bjvfq"  # Replace with actual URL
-wishlist_items = get_wishlist_items(wishlist_link)
-if wishlist_items:
-    display_cards(wishlist_items, "Wishlist")
+if wishlist_link:
+    st.success(f"Your saved wishlist link: {wishlist_link}")
+    wishlist_items = get_wishlist_items(wishlist_link)
+    if wishlist_items:
+        display_cards(wishlist_items, "Wishlist")
