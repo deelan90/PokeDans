@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 
-# Custom CSS for Pokémon-style font and Franklin Gothic for body text
+# Custom CSS for Pokémon-style font and subtle bold grading titles
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Flexo:wght@700&display=swap');
@@ -32,6 +32,9 @@ body {
 .card-container {
     text-align: center;
     margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .card-image {
@@ -46,11 +49,37 @@ body {
     padding: 10px;
     border-radius: 10px;
     margin-bottom: 10px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .grading-card h4 {
     font-weight: bold;
+    font-size: 14px;
     margin: 0;
+    text-align: center;
+}
+
+@media screen and (min-width: 768px) {
+    .stImage > img {
+        object-fit: cover;
+        max-width: 100%;
+        height: auto;
+    }
+
+    .card-container {
+        display: flex;
+        align-items: flex-start;
+    }
+
+    .stColumns {
+        display: flex;
+        flex-wrap: nowrap;
+    }
+
+    .stColumn {
+        flex: 1;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
