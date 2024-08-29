@@ -120,7 +120,7 @@ def display_cards(cards):
                 with cols[idx % num_columns]:
                     st.markdown("<div class='card-image-container'>", unsafe_allow_html=True)
                     if card['image']:
-                        st.image(card['image'], use_column_width=True, class_="card-image")
+                        st.image(card['image'], use_column_width=True)  # Removed the 'class_' argument
                     else:
                         st.write("Image not available")
                     st.markdown(
