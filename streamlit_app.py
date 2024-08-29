@@ -87,7 +87,7 @@ def get_high_res_image(card_link):
 # Function to display cards in a dynamic layout
 def display_cards(cards):
     if cards:
-        num_columns = 8 if st.experimental_user_info().screen_width >= 1024 else 2
+        num_columns = 8 if st.sidebar.checkbox("Desktop View", value=True) else 2
         st.markdown("<style>.card-image-container { text-align: center; }</style>", unsafe_allow_html=True)
         for card in cards:
             st.markdown(f"### {card['name']}")
