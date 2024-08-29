@@ -9,12 +9,11 @@ def fetch_grading_data(card_page_url):
         card_page_response.raise_for_status()
         card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
         
-        # Locate the grading data on the individual card page
         grading_data = {}
         grading_table = card_page_soup.find('table', {'class': 'graded_prices_table'})
         
         if grading_table:
-            for row in grading_table.find_all('tr')[1:]:  # Skipping the header
+            for row in grading_table.find_all('tr')[1:]:  # Skip header row
                 cells = row.find_all('td')
                 if len(cells) >= 2:
                     grading = cells[0].text.strip()
@@ -62,11 +61,10 @@ def get_pokemon_cards(collection_url):
                 card_link = card_link_element.get('href') if card_link_element else None
                 card_image_url = get_high_res_image(card_link) if card_link else None
 
-                # Updated grading extraction
+                # Extract grading name and collate grading data
                 grading_element = offer.find('td', class_='grade')
                 if grading_element:
                     grading_name = grading_element.text.strip()
-                    # Check if it's a graded card
                     if grading_name in ['PSA', 'BGS', 'CGC']:
                         grade_number = offer.find('td', class_='grade-number')
                         if grade_number:
@@ -83,7 +81,7 @@ def get_pokemon_cards(collection_url):
                         'gradings': []
                     }
                 
-                # Fetch the detailed grading data
+                # Fetch detailed grading data
                 if card_link:
                     grading_data = fetch_grading_data(f"https://www.pricecharting.com{card_link}")
                     for grading, value in grading_data.items():
@@ -139,7 +137,7 @@ def display_cards(cards):
                 justify-content: space-around;
             }
             .card {
-                width: calc(100% / 8 - 20px);
+                flex: 1 0 21%; /* 21% of the container's width for 8 columns */
                 margin: 10px;
                 text-align: center;
             }
@@ -155,7 +153,7 @@ def display_cards(cards):
             }
             @media (max-width: 1200px) {
                 .card {
-                    width: calc(100% / 2 - 20px);
+                    flex: 1 0 45%; /* 45% of the container's width for 2 columns */
                 }
             }
         </style>
