@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
+from collections import defaultdict
 
 def get_pokemon_cards(collection_url):
     try:
@@ -11,7 +12,9 @@ def get_pokemon_cards(collection_url):
         if not table:
             st.error("Could not find the card data table.")
             return None
-        cards = {}
+        
+        cards = defaultdict(lambda: {'gradings': []})
+        
         for offer in table.find_all('tr', class_='offer'):
             try:
                 card_name_element = offer.find('td', class_='meta')
@@ -34,17 +37,14 @@ def get_pokemon_cards(collection_url):
                 
                 card_link_element = offer.find('td', class_='photo').find('div').find('a')
                 card_link = card_link_element.get('href') if card_link_element else None
-                card_image_url = get_high_res_image(card_link) if card_link else None
                 
                 grading_element = offer.find('td', class_='grade')
                 grading_name = grading_element.text.strip() if grading_element else "Ungraded"
                 
-                if card_name not in cards:
-                    cards[card_name] = {
-                        'name': card_name,
-                        'image': card_image_url,
-                        'gradings': []
-                    }
+                if 'name' not in cards[card_name]:
+                    cards[card_name]['name'] = card_name
+                    cards[card_name]['image'] = get_high_res_image(card_link) if card_link else None
+                
                 cards[card_name]['gradings'].append({
                     'grading_name': grading_name,
                     'value_aud': card_value_aud,
@@ -54,6 +54,7 @@ def get_pokemon_cards(collection_url):
             except Exception as e:
                 st.error(f"An error occurred processing a card: {e}")
                 continue
+        
         return list(cards.values())
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {e}")
@@ -77,21 +78,9 @@ def display_cards(cards):
         num_columns = 8 if st.sidebar.checkbox("Desktop View", value=True) else 2
         st.markdown("""
             <style>
-                .card-image-container {
-                    text-align: center;
-                }
-                .card-image {
-                    border-radius: 10px;
-                    margin-bottom: 15px;
-                    max-height: 200px;
-                }
-                .grading-container {
-                    background-color: rgba(255, 255, 255, 0.1);
-                    padding: 8px;
-                    border-radius: 8px;
-                    margin-top: 10px;
-                    min-height: 80px;
-                }
+                .card-image-container { text-align: center; }
+                .card-image { border-radius: 10px; margin-bottom: 15px; max-height: 200px; }
+                .grading-container { background-color: rgba(255,255,255,0.1); padding: 8px; border-radius: 8px; margin-top: 10px; }
             </style>
             """, unsafe_allow_html=True)
         
@@ -118,6 +107,7 @@ def display_cards(cards):
                         unsafe_allow_html=True
                     )
 
+# Streamlit app setup
 st.set_page_config(page_title="PokéDan", page_icon=":zap:", layout="wide")
 st.title("PokéDan")
 
