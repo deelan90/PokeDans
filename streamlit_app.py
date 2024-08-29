@@ -22,10 +22,14 @@ def fetch_total_value_and_count(soup):
     try:
         summary_table = soup.find('table', id='summary')
         print(f"Summary Table HTML: {summary_table}")
-        total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
-        card_count = summary_table.find_all('td', class_='number')[1].text.strip()
-        print(f"Total Value (USD): {total_value_usd}, Card Count: {card_count}")
-        return float(total_value_usd), int(card_count)
+        if summary_table:
+            total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
+            card_count = summary_table.find_all('td', class_='number')[1].text.strip()
+            print(f"Total Value (USD): {total_value_usd}, Card Count: {card_count}")
+            return float(total_value_usd), int(card_count)
+        else:
+            print("Summary table not found.")
+            return None, None
     except AttributeError as e:
         st.error(f"Error fetching total value and count: {e}")
         print(f"AttributeError: {e}")
