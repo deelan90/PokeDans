@@ -43,34 +43,37 @@ def fetch_total_value_and_count(soup):
     
     return None, None  # Return None if the values can't be found
 
+# Function to extract card details from the active offers table
+def extract_card_details(card):
+    title_element = card.find('p', class_='title')
+    title = title_element.text.strip() if title_element else "Unknown"
+    
+    grading_element = card.find('td', class_='includes')
+    grading = grading_element.text.strip() if grading_element else "Ungraded"
+    
+    price_element = card.find('span', class_='js-price')
+    price_usd = price_element.text.strip().replace('$', '').replace(',', '') if price_element else "0"
+    
+    return title, grading, float(price_usd)
+
 # Function to fetch and display card images and prices
 def display_card_info(soup, rate_aud, rate_yen):
-    card_elements = soup.select('div.panel.panel-default')
+    card_rows = soup.select('tr.offer')
     card_data = []
-    for card in card_elements:
-        title = card.select_one('h3').text.strip()
-        card_link = card.select_one('a')['href']
-        img_url = get_high_res_image(card_link)  # Use high-resolution image
-
-        grade_rows = card.select('table tr')
-        
-        grading_info = []
-        for row in grade_rows:
-            cols = row.find_all('td')
-            if len(cols) >= 3:
-                grading_name = cols[2].text.strip()
-                price_usd = cols[0].text.strip().replace('$', '').replace(',', '')
-                if price_usd != 'N/A':
-                    price_aud = float(price_usd) * rate_aud
-                    price_yen = float(price_usd) * rate_yen
-                    grading_info.append((grading_name, price_aud, price_yen))
-        
-        card_data.append((title, img_url, grading_info))
     
-    for title, img_url, grading_info in card_data:
+    for card in card_rows:
+        title, grading, price_usd = extract_card_details(card)
+        card_link = card.find('a')['href']
+        img_url = get_high_res_image(card_link)
+        
+        price_aud = price_usd * rate_aud
+        price_yen = price_usd * rate_yen
+
+        card_data.append((title, grading, img_url, price_aud, price_yen))
+
+    for title, grading, img_url, price_aud, price_yen in card_data:
         st.image(img_url, caption=title, width=200)
-        for grading_name, price_aud, price_yen in grading_info:
-            st.write(f"**{grading_name}**: ${price_aud:,.2f} AUD / ¥{price_yen:,.0f} JPY")
+        st.write(f"**{grading}**: ${price_aud:,.2f} AUD / ¥{price_yen:,.0f} JPY")
         st.write("---")
 
 # Main function to run the Streamlit app
