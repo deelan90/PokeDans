@@ -9,18 +9,48 @@ logging.basicConfig(level=logging.DEBUG)
 # Custom CSS for Pokémon-style font and page title
 st.markdown("""
 <style>
-/* Custom styling for the PokéDan app */
+.page-title {
+    font-family: 'Flexo', sans-serif;
+    font-size: 48px;
+    font-weight: 700;
+    color: #FFCB05;
+    letter-spacing: 2px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.pokemon-font {
+    font-family: 'Flexo', sans-serif;
+    color: #FFCB05;
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.card-grading {
+    background-color: #f5f5f5;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    text-align: center;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
+# Function to fetch high-resolution images
 def get_high_res_image(card_link):
     try:
         card_page_response = requests.get(card_link)
         card_page_response.raise_for_status()
         card_page_soup = BeautifulSoup(card_page_response.content, 'html.parser')
+
+        # Attempt to find the main image element
         card_image_element = card_page_soup.find('img', {'src': lambda x: x and ('jpeg' in x.lower() or 'jpg' in x.lower())})
         if card_image_element:
-            return card_image_element.get('src')
+            image_url = card_image_element.get('src')
+            logging.info(f"Image found: {image_url}")
+            return image_url
         else:
             logging.error("Could not find high-resolution image.")
             return None
@@ -28,6 +58,7 @@ def get_high_res_image(card_link):
         logging.error(f"Error fetching high-resolution image: {e}")
         return None
 
+# Function to fetch and extract data from PriceCharting
 def get_pokemon_cards(collection_url):
     try:
         response = requests.get(collection_url)
@@ -109,6 +140,7 @@ def get_pokemon_cards(collection_url):
         logging.error(f"An unexpected error occurred: {e}")
         return None
 
+# Function to display the cards in Streamlit
 def display_cards(cards):
     if cards:
         cols = st.columns(2)  # Create two columns for the grid layout
