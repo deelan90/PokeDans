@@ -11,10 +11,11 @@ card_container_style = """
         padding: 10px;
         border-radius: 15px;
         background-color: #111;
+        border-radius: 15px;
         box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
     }
     .card-image {
-        width: 100%;
+        width: 12.5%;
         height: auto;
         border-radius: 15px;
     }
