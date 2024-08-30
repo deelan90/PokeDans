@@ -4,12 +4,12 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from collections import defaultdict
 
-# Function to fetch and convert currency using real-time rates from XE.com
+# Function to fetch and convert currency using real-time rates from Fixer API
 def fetch_and_convert_currency(usd_value):
     try:
-        # Fetch exchange rates from XE.com
-        rate_aud = fetch_exchange_rate("USD", "AUD")
-        rate_yen = fetch_exchange_rate("USD", "JPY")
+        # Fetch exchange rates from Fixer API
+        rate_aud = fetch_exchange_rate("AUD")
+        rate_yen = fetch_exchange_rate("JPY")
 
         # Debugging: Print fetched rates
         st.write(f"Fetched exchange rates: 1 USD = {rate_aud} AUD, 1 USD = {rate_yen} JPY")
@@ -29,21 +29,20 @@ def fetch_and_convert_currency(usd_value):
         st.error(f"Error in currency conversion: {e}")
         return 0.0, 0.0
 
-# Function to fetch exchange rates from XE.com
-def fetch_exchange_rate(from_currency, to_currency):
-    url = f"https://www.xe.com/currencycharts/?from={from_currency}&to={to_currency}"
+# Function to fetch exchange rates from Fixer API
+def fetch_exchange_rate(target_currency):
+    api_key = "06d2909fdfd0f16758ebd7daf503cb6b"  # Replace with your Fixer API key
+    url = f"http://data.fixer.io/api/latest?access_key={api_key}&symbols=USD,{target_currency}&format=1"
+    
     response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-
-    # Look for the specific <p> tag that has the exchange rate using a more accurate selector
-    rate_tag = soup.find('p', class_='sc-b39d611a-0 hjhFZZ')
-
-    if rate_tag and f"1 {from_currency} =" in rate_tag.text:
-        rate_text = rate_tag.text.strip()
-        rate_value = rate_text.split('=')[1].strip().split(' ')[0]
-        return float(rate_value)
+    data = response.json()
+    
+    if response.status_code == 200 and data['success']:
+        # Conversion rate between USD and the target currency
+        rate_usd_to_target = data['rates'][target_currency] / data['rates']['USD']
+        return rate_usd_to_target
     else:
-        st.error(f"Could not fetch exchange rate for {from_currency} to {to_currency}")
+        st.error(f"Could not fetch exchange rate for USD to {target_currency}. Error: {data.get('error', 'Unknown error')}")
         return None
 
 # Function to fetch total value and card count
