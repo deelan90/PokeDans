@@ -13,27 +13,19 @@ def fetch_and_convert_currency(usd_value, rate_aud, rate_yen):
     except ValueError:
         return None, None
 
-# Function to scrape exchange rates from XE.com
+# Function to get exchange rates from ExchangeRate-API
 def get_exchange_rates():
+    api_key = "YOUR_API_KEY_HERE"  # Replace with your actual API key
+    base_url = f"https://v6.exchangerate-api.com/v6/{api_key}/latest/USD"
     try:
-        # Scrape AUD/USD
-        aud_response = requests.get("https://www.xe.com/currencycharts/?from=USD&to=AUD")
-        aud_soup = BeautifulSoup(aud_response.content, 'html.parser')
-        aud_row = aud_soup.find('tr', {'data-sleek-node-id': '240706'})
-        print("AUD row:", aud_row)  # Debugging line
-        aud_rate = float(aud_row.find_all('td')[1].text.strip()) if aud_row else None
-
-        # Scrape USD/JPY
-        yen_response = requests.get("https://www.xe.com/currencycharts/?from=USD&to=JPY")
-        yen_soup = BeautifulSoup(yen_response.content, 'html.parser')
-        yen_row = yen_soup.find('tr', {'data-sleek-node-id': 'e604a2'})
-        print("JPY row:", yen_row)  # Debugging line
-        yen_rate = float(yen_row.find_all('td')[1].text.strip()) if yen_row else None
-
-        if not aud_rate or not yen_rate:
-            raise ValueError("Could not fetch one or both currency rates.")
-
-        return aud_rate, yen_rate
+        response = requests.get(base_url)
+        data = response.json()
+        if data['result'] == 'success':
+            aud_rate = data['conversion_rates']['AUD']
+            yen_rate = data['conversion_rates']['JPY']
+            return aud_rate, yen_rate
+        else:
+            raise ValueError("Failed to fetch exchange rates")
     except Exception as e:
         st.error(f"Error fetching currency rates: {e}")
         return None, None
@@ -63,7 +55,8 @@ def get_high_res_image(card_link):
 # Function to display card information
 def display_card_info(soup, rate_aud, rate_yen):
     card_rows = soup.find_all('tr', class_='offer')
-    for card in card_rows:
+    cols = st.columns(4)  # Create 4 columns
+    for index, card in enumerate(card_rows):
         try:
             card_name_tag = card.find('p', class_='title')
             if not card_name_tag:
@@ -72,17 +65,18 @@ def display_card_info(soup, rate_aud, rate_yen):
             card_link = card.find('a')['href']
             grading = card.find('td', class_='includes').text.strip()
             price_usd = card.find('span', class_='js-price').text.strip()
-
+            
             # Fetch high-resolution image
             image_url = get_high_res_image(card_link)
-
+            
             # Convert currency
             price_aud, price_yen = fetch_and_convert_currency(price_usd, rate_aud, rate_yen)
-
-            # Display the card
-            st.image(image_url, caption=card_name)
-            st.write(f"Grading: **{grading}**")
-            st.write(f"Value: ${price_aud:.2f} AUD / ¥{price_yen:.2f} Yen")
+            
+            # Display the card in the appropriate column
+            with cols[index % 4]:
+                st.image(image_url, caption=card_name, use_column_width=True)
+                st.write(f"Grading: **{grading}**")
+                st.write(f"Value: ${price_aud:.2f} AUD / ¥{price_yen:.2f} Yen")
         except Exception as e:
             st.error(f"An error occurred while processing a card: {e}")
 
@@ -92,20 +86,17 @@ def main():
     
     # Link to collection page
     url = "https://www.pricecharting.com/offers?status=collection&seller=yx5zdzzvnnhyvjeffskx64pus4&sort=name&category=all&folder-id=&condition-id=all"
-
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
 
     # Fetch exchange rates
     rate_aud, rate_yen = get_exchange_rates()
-
     if rate_aud is None or rate_yen is None:
         st.error("Currency rates could not be fetched.")
         return
 
     # Fetch total value and count
     total_value_usd, total_count = fetch_total_value_and_count(soup)
-
     if total_value_usd:
         total_value_aud, total_value_yen = fetch_and_convert_currency(total_value_usd, rate_aud, rate_yen)
         st.write(f"Total Collection Value: **${total_value_aud:.2f} AUD / ¥{total_value_yen:.2f} Yen**", unsafe_allow_html=True)
