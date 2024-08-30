@@ -6,15 +6,17 @@ import time
 # Function to fetch currency rates
 def get_exchange_rates():
     try:
-        url = "https://www.xe.com/currencycharts/?from=USD&to=AUD"
-        response = requests.get(url)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        rate_aud = float(soup.find('tr', {'data-sleek-node-id': '240706'}).find_all('td')[1].text.strip())
-
-        url = "https://www.xe.com/currencycharts/?from=USD&to=JPY"
-        response = requests.get(url)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        rate_yen = float(soup.find('tr', {'data-sleek-node-id': 'e604a2'}).find_all('td')[1].text.strip())
+        url_aud = "https://www.xe.com/currencycharts/?from=USD&to=AUD"
+        url_jpy = "https://www.xe.com/currencycharts/?from=USD&to=JPY"
+        
+        response_aud = requests.get(url_aud)
+        response_jpy = requests.get(url_jpy)
+        
+        soup_aud = BeautifulSoup(response_aud.content, 'html.parser')
+        soup_jpy = BeautifulSoup(response_jpy.content, 'html.parser')
+        
+        rate_aud = float(soup_aud.find('tr', {'data-sleek-node-id': '240706'}).find_all('td')[1].text.strip())
+        rate_yen = float(soup_jpy.find('tr', {'data-sleek-node-id': 'e604a2'}).find_all('td')[1].text.strip())
 
         return rate_aud, rate_yen
     except Exception as e:
@@ -77,7 +79,9 @@ def display_card_info(soup, rate_aud, rate_yen):
         st.image(card_data['image'], width=300)
         st.markdown(f"**{card_name}**")
         for grading, price_aud, price_yen in card_data['gradings']:
-            st.markdown(f"**{grading}:** ${price_aud:.2f} AUD | ¥{price_yen:.2f} JPY")
+            aud_display = f"${price_aud:.2f} AUD" if price_aud is not None else "N/A AUD"
+            yen_display = f"¥{price_yen:.2f} JPY" if price_yen is not None else "N/A JPY"
+            st.markdown(f"**{grading}:** {aud_display} | {yen_display}")
         st.write("---")
 
 # Main function
