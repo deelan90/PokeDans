@@ -8,7 +8,7 @@ def fetch_and_convert_currency(usd_value, rate_aud, rate_yen):
     try:
         value_usd = float(usd_value.replace('$', '').replace(',', '').strip())
         value_aud = value_usd * rate_aud
-        value_yen = value_aud * rate_yen
+        value_yen = value_usd * rate_yen
         return value_aud, value_yen
     except ValueError:
         return None, None
@@ -19,12 +19,19 @@ def get_exchange_rates():
         # Scrape AUD/USD
         aud_response = requests.get("https://www.xe.com/currencycharts/?from=USD&to=AUD")
         aud_soup = BeautifulSoup(aud_response.content, 'html.parser')
-        aud_rate = float(aud_soup.find('tr', {'data-sleek-node-id': '240706'}).find_all('td')[1].text.strip())
+        aud_row = aud_soup.find('tr', {'data-sleek-node-id': '240706'})
+        print("AUD row:", aud_row)  # Debugging line
+        aud_rate = float(aud_row.find_all('td')[1].text.strip()) if aud_row else None
 
         # Scrape USD/JPY
         yen_response = requests.get("https://www.xe.com/currencycharts/?from=USD&to=JPY")
         yen_soup = BeautifulSoup(yen_response.content, 'html.parser')
-        yen_rate = float(yen_soup.find('tr', {'data-sleek-node-id': 'e604a2'}).find_all('td')[1].text.strip())
+        yen_row = yen_soup.find('tr', {'data-sleek-node-id': 'e604a2'})
+        print("JPY row:", yen_row)  # Debugging line
+        yen_rate = float(yen_row.find_all('td')[1].text.strip()) if yen_row else None
+
+        if not aud_rate or not yen_rate:
+            raise ValueError("Could not fetch one or both currency rates.")
 
         return aud_rate, yen_rate
     except Exception as e:
