@@ -110,14 +110,14 @@ def display_card_info(soup, cache):
     card_rows = soup.find_all('tr', class_='offer')
     for card in card_rows:
         try:
-            card_name_tag = card.find('p', class_='title')
+            card_name_tag = card.find('a')  # Find the anchor tag with the card name
             if not card_name_tag:
                 continue
             card_name = card_name_tag.text.strip()
-            card_link = card.find('a')['href']
+            card_link = card_name_tag['href']
             grading = card.find('td', class_='includes').text.strip()
             price_usd = card.find('span', class_='js-price').text.strip()
-            # Fetch additional text under the card name
+            # Fetch additional text under the card image
             additional_info = card_name_tag.find_next('br').next_sibling.strip() if card_name_tag.find_next('br') else ''
             card_groups[card_name].append({
                 'link': card_link,
@@ -151,10 +151,10 @@ def display_card_info(soup, cache):
                     if price_aud != 0.0 and price_yen != 0.0:
                         # Use custom HTML for displaying the card information
                         st.markdown(f"""
-                        <div style="background-color: #333; padding: 10px; border-radius: 5px; text-align: center;">
-                            <h6 style="color: white; font-family: 'Arial'; margin-bottom: 5px; font-size: 16px;">{card['grading']}</h6>
-                            <p style="color: white; font-size: 13px; margin: 5px 0;">AUD $ {price_aud:.2f}</p>
-                            <p style="color: white; font-size: 13px; margin: 5px 0;">YEN ¥ {price_yen:.2f}</p>
+                        <div style="background-color: #333; padding: 5px; border-radius: 5px; text-align: center;">
+                            <h6 style="color: white; font-family: 'Arial'; margin-bottom: 2px; font-size: 16px;">{card['grading']}</h6>
+                            <p style="color: white; font-size: 13px; margin: 2px 0;">AUD $ {price_aud:.2f}</p>
+                            <p style="color: white; font-size: 13px; margin: 2px 0;">YEN ¥ {price_yen:.2f}</p>
                         </div>
                         """, unsafe_allow_html=True)
                     else:
