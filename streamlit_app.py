@@ -7,7 +7,7 @@ import re
 # Function to fetch the collection page
 def fetch_collection_page():
     try:
-        url = "https://www.pricecharting.com/offers?status=collection&seller=yx5zdzzvnnhyvjeffskx64pus4&sort=name&category=all&folder-id=&condition-id=all"  # Replace with the actual URL
+        url = "URL_OF_YOUR_COLLECTION_PAGE"  # Replace with the actual URL
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -40,16 +40,21 @@ def fetch_and_convert_currency(amount_in_usd):
     try:
         response = requests.get("https://www.xe.com/currencycharts/?from=USD&to=AUD")
         soup = BeautifulSoup(response.text, 'html.parser')
-        aud_rate = float(soup.find_all('td', class_='sc-621fdd77-1 keQHwf')[1].text.strip())
+        aud_rate_tag = soup.find_all('td', class_='sc-621fdd77-1 keQHwf')[1]
+        aud_rate = float(aud_rate_tag.text.strip()) if aud_rate_tag else None
         
         response = requests.get("https://www.xe.com/currencycharts/?from=USD&to=JPY")
         soup = BeautifulSoup(response.text, 'html.parser')
-        jpy_rate = float(soup.find_all('td', class_='sc-621fdd77-1 keQHwf')[1].text.strip())
+        jpy_rate_tag = soup.find_all('td', class_='sc-621fdd77-1 keQHwf')[1]
+        jpy_rate = float(jpy_rate_tag.text.strip()) if jpy_rate_tag else None
         
+        if aud_rate is None or jpy_rate is None:
+            raise ValueError("Currency rates could not be fetched.")
+
         rate_aud = amount_in_usd * aud_rate
         rate_yen = amount_in_usd * jpy_rate
 
-        print(f"Rates fetched: AUD/USD={rate_aud}, USD/JPY={rate_yen}")
+        print(f"Rates fetched: AUD/USD={aud_rate}, USD/JPY={jpy_rate}")
         return rate_aud, rate_yen
     except Exception as e:
         st.error(f"Error fetching currency rates: {e}")
@@ -62,12 +67,16 @@ def display_card_info(soup, rate_aud, rate_yen):
     try:
         for card in soup.find_all('tr', class_='offer'):
             try:
-                card_name = card.find('p', class_='title').find('a').text.strip()
-                card_link = card.find('p', class_='title').find('a')['href']
+                title_tag = card.find('p', class_='title')
+                if not title_tag:
+                    raise ValueError("Card title tag not found.")
+
+                card_name = title_tag.find('a').text.strip()
+                card_link = title_tag.find('a')['href']
                 card_image_url = get_high_res_image(card_link)
 
-                grading = card.find('td', class_='includes').text.strip()
-                price_text = card.find('td', class_='price').text.strip()
+                grading = card.find('td', class_='includes').text.strip() if card.find('td', class_='includes') else "Ungraded"
+                price_text = card.find('td', class_='price').text.strip() if card.find('td', class_='price') else "N/A"
 
                 # Extract numeric price using regular expression
                 price_match = re.search(r"\d+\.\d+", price_text)
@@ -95,7 +104,7 @@ def display_card_info(soup, rate_aud, rate_yen):
         for card_name, card_data in cards.items():
             st.image(card_data['image'], caption=card_name, width=200)
             for grading, (price_aud, price_yen) in card_data['gradings'].items():
-                st.markdown(f"**{grading}:** {price_aud:.2f} AUD | {price_yen:.2f} JPY")
+                st.markdown(f"**{grading}:** {price_aud if price_aud != 'N/A' else 'N/A'} AUD | {price_yen if price_yen != 'N/A' else 'N/A'} JPY")
             st.write("---")
     
     except Exception as e:
