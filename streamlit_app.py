@@ -10,13 +10,24 @@ def fetch_and_convert_currency(usd_value):
         # Fetch exchange rates from XE.com
         rate_aud = fetch_exchange_rate("USD", "AUD")
         rate_yen = fetch_exchange_rate("USD", "JPY")
-        
+
+        # Debugging: Print fetched rates
+        st.write(f"Fetched exchange rates: 1 USD = {rate_aud} AUD, 1 USD = {rate_yen} JPY")
+
+        if rate_aud is None or rate_yen is None:
+            raise ValueError("Exchange rate fetching failed.")
+
         value_usd = float(usd_value.replace('$', '').replace(',', '').strip())
         value_aud = value_usd * rate_aud
         value_yen = value_usd * rate_yen
+
+        # Debugging: Print conversion results
+        st.write(f"Converted values: {value_usd} USD = {value_aud} AUD, {value_usd} USD = {value_yen} JPY")
+
         return value_aud, value_yen
-    except ValueError:
-        return None, None
+    except ValueError as e:
+        st.error(f"Error in currency conversion: {e}")
+        return 0.0, 0.0
 
 # Function to fetch exchange rates from XE.com
 def fetch_exchange_rate(from_currency, to_currency):
@@ -92,11 +103,11 @@ def display_card_info(soup):
                 for card in cards:
                     # Convert currency
                     price_aud, price_yen = fetch_and_convert_currency(card['price_usd'])
-                    if price_aud is not None and price_yen is not None:
+                    if price_aud != 0.0 and price_yen != 0.0:
                         st.write(f"Grading: **{card['grading']}**")
                         st.write(f"Value: ${price_aud:.2f} AUD / ¥{price_yen:.2f} Yen")
                     else:
-                        st.write("Could not fetch conversion rates.")
+                        st.write("Conversion failed. Check rates or values.")
         except Exception as e:
             st.error(f"An error occurred while displaying the card: {e}")
 
