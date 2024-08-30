@@ -3,31 +3,17 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 
-# Function to fetch and convert currency
-def fetch_and_convert_currency(usd_value, rate_aud, rate_yen):
+# Function to fetch and convert currency using fixed rates
+def fetch_and_convert_currency(usd_value):
     try:
         value_usd = float(usd_value.replace('$', '').replace(',', '').strip())
+        # Fixed conversion rates
+        rate_aud = 1.5  # 1 USD = 1.5 AUD (example fixed rate)
+        rate_yen = 110  # 1 USD = 110 JPY (example fixed rate)
         value_aud = value_usd * rate_aud
         value_yen = value_usd * rate_yen
         return value_aud, value_yen
     except ValueError:
-        return None, None
-
-# Function to get exchange rates from ExchangeRate-API
-def get_exchange_rates():
-    api_key = "YOUR_API_KEY_HERE"  # Replace with your actual API key
-    base_url = f"https://v6.exchangerate-api.com/v6/{api_key}/latest/USD"
-    try:
-        response = requests.get(base_url)
-        data = response.json()
-        if data['result'] == 'success':
-            aud_rate = data['conversion_rates']['AUD']
-            yen_rate = data['conversion_rates']['JPY']
-            return aud_rate, yen_rate
-        else:
-            raise ValueError("Failed to fetch exchange rates")
-    except Exception as e:
-        st.error(f"Error fetching currency rates: {e}")
         return None, None
 
 # Function to fetch total value and card count
@@ -53,7 +39,7 @@ def get_high_res_image(card_link):
         return None
 
 # Function to display card information
-def display_card_info(soup, rate_aud, rate_yen):
+def display_card_info(soup):
     card_rows = soup.find_all('tr', class_='offer')
     cols = st.columns(4)  # Create 4 columns
     for index, card in enumerate(card_rows):
@@ -70,7 +56,7 @@ def display_card_info(soup, rate_aud, rate_yen):
             image_url = get_high_res_image(card_link)
             
             # Convert currency
-            price_aud, price_yen = fetch_and_convert_currency(price_usd, rate_aud, rate_yen)
+            price_aud, price_yen = fetch_and_convert_currency(price_usd)
             
             # Display the card in the appropriate column
             with cols[index % 4]:
@@ -89,16 +75,10 @@ def main():
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Fetch exchange rates
-    rate_aud, rate_yen = get_exchange_rates()
-    if rate_aud is None or rate_yen is None:
-        st.error("Currency rates could not be fetched.")
-        return
-
     # Fetch total value and count
     total_value_usd, total_count = fetch_total_value_and_count(soup)
     if total_value_usd:
-        total_value_aud, total_value_yen = fetch_and_convert_currency(total_value_usd, rate_aud, rate_yen)
+        total_value_aud, total_value_yen = fetch_and_convert_currency(total_value_usd)
         st.write(f"Total Collection Value: **${total_value_aud:.2f} AUD / ¥{total_value_yen:.2f} Yen**", unsafe_allow_html=True)
     else:
         st.write("Total Collection Value: Not available", unsafe_allow_html=True)
@@ -109,7 +89,7 @@ def main():
         st.write("Total Cards: Not available", unsafe_allow_html=True)
 
     # Display card info
-    display_card_info(soup, rate_aud, rate_yen)
+    display_card_info(soup)
 
     # Last updated time
     st.markdown(f"**Last updated:** {datetime.now()}")
