@@ -48,8 +48,7 @@ def fetch_and_convert_currency(usd_value, cache):
 
 # Function to fetch exchange rates from Fixer API
 def fetch_exchange_rate(target_currency):
-    api_key = "06d2909fdfd0f16758ebd7daf503cb6b
-"  # Replace with your Fixer API key
+    api_key = "06d2909fdfd0f16758ebd7daf503cb6b"  # Replace with your Fixer API key
     url = f"http://data.fixer.io/api/latest?access_key={api_key}&symbols=USD,{target_currency}&format=1"
     
     response = requests.get(url)
