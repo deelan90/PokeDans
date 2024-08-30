@@ -35,9 +35,10 @@ def fetch_exchange_rate(from_currency, to_currency):
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Find the rate in the page based on the provided HTML structure
-    rate_tag = soup.find('p', class_='sc-b39d611a-0 hjhFZZ', string=lambda x: x and f"1 {from_currency} = " in x)
-    if rate_tag:
+    # Look for the specific <p> tag that has the exchange rate using a more accurate selector
+    rate_tag = soup.find('p', class_='sc-b39d611a-0 hjhFZZ')
+
+    if rate_tag and f"1 {from_currency} =" in rate_tag.text:
         rate_text = rate_tag.text.strip()
         rate_value = rate_text.split('=')[1].strip().split(' ')[0]
         return float(rate_value)
