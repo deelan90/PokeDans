@@ -63,39 +63,46 @@ def fetch_total_value_and_count(soup):
         return None, None
 
 # Function to display card information
+# Function to fetch and display card information
 def display_card_info(soup, rate_aud, rate_yen):
     cards = {}
+    try:
+        for card in soup.find_all('tr', class_='offer'):
+            try:
+                card_name = card.find('p', class_='title').find('a').text.strip()
+                card_link = card.find('p', class_='title').find('a')['href']
+                card_image_url = get_high_res_image(card_link)
+
+                # Fetching grading and price
+                grading = card.find('td', class_='includes').text.strip()
+                price = card.find('td', class_='price').text.strip().replace('$', '').replace(',', '')
+
+                # Convert prices to AUD and JPY
+                price_aud = float(price) * rate_aud if price else 'N/A'
+                price_yen = float(price) * rate_yen if price else 'N/A'
+
+                if card_name not in cards:
+                    cards[card_name] = {
+                        'image': card_image_url,
+                        'gradings': {}
+                    }
+
+                cards[card_name]['gradings'][grading] = (price_aud, price_yen)
+                print(f"Card Processed: {card_name} | Grading: {grading} | Prices: {price_aud} AUD | {price_yen} JPY")
+            except Exception as e:
+                st.error(f"An error occurred while processing a card: {e}")
+                print(f"Card Processing Error: {e}")
+                continue
+
+        for card_name, card_data in cards.items():
+            st.image(card_data['image'], caption=card_name, width=200)
+            for grading, (price_aud, price_yen) in card_data['gradings'].items():
+                st.markdown(f"**{grading}:** {price_aud:.2f} AUD | {price_yen:.2f} JPY")
+            st.write("---")
     
-    for card in soup.find_all('tr', class_='offer'):
-        try:
-            # Skip header rows by checking if the row contains the expected data elements
-            card_name_tag = card.find('p', class_='title')
-            if card_name_tag is None:
-                raise ValueError("Card name tag not found.")
-
-            card_name = card_name_tag.find('a').text.strip()
-            card_link = card_name_tag.find('a')['href']
-            card_image_url = get_high_res_image(card_link)
-            grading = card.find('td', class_='includes').text.strip()
-            price_usd_tag = card.find('td', class_='price').find('span', class_='js-price')
-            if price_usd_tag is None:
-                raise ValueError("Price tag not found.")
-
-            price_usd = float(price_usd_tag.text.strip().replace('$', ''))
-
-            # Convert price to AUD and JPY
-            price_aud = price_usd * rate_aud if rate_aud else None
-            price_yen = price_usd * rate_yen if rate_yen else None
-
-            if card_name not in cards:
-                cards[card_name] = {
-                    'image': card_image_url,
-                    'gradings': []
-                }
-
-            cards[card_name]['gradings'].append((grading, price_aud, price_yen))
-        except Exception as e:
-            st.warning(f"Card name tag not found, skipping entry. Error: {e}")
+    except Exception as e:
+        st.error(f"An error occurred while displaying cards: {e}")
+        print(f"Display Error: {e}")
 
     for card_name, card_data in cards.items():
         st.image(card_data['image'], width=300)
