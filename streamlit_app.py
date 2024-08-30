@@ -33,6 +33,10 @@ def fetch_and_convert_currency(usd_value, cache):
         rate_aud = cache.get('rate_aud')
         rate_yen = cache.get('rate_yen')
 
+        if rate_aud is None or rate_yen is None:
+            st.error("Exchange rates are not available. Conversion cannot be performed.")
+            return 0.0, 0.0
+
         # Convert USD to AUD and JPY using cached rates
         value_usd = float(usd_value.replace('$', '').replace(',', '').strip())
         value_aud = value_usd * rate_aud
@@ -52,16 +56,20 @@ def update_exchange_rates(cache):
     response = requests.get(url)
     data = response.json()
     
-    if response.status_code == 200 and data['success']:
+    if response.status_code == 200 and data.get('success'):
         # Conversion rates
-        rate_aud = data['rates']['AUD'] / data['rates']['USD']
-        rate_yen = data['rates']['JPY'] / data['rates']['USD']
+        rate_aud = data['rates'].get('AUD') / data['rates'].get('USD')
+        rate_yen = data['rates'].get('JPY') / data['rates'].get('USD')
 
-        # Update cache
-        cache['rate_aud'] = rate_aud
-        cache['rate_yen'] = rate_yen
-        cache['last_update'] = datetime.now()
-        save_cache(cache)
+        # Ensure rates are not None
+        if rate_aud is None or rate_yen is None:
+            st.error("Failed to retrieve valid exchange rates. Please try again later.")
+        else:
+            # Update cache
+            cache['rate_aud'] = rate_aud
+            cache['rate_yen'] = rate_yen
+            cache['last_update'] = datetime.now()
+            save_cache(cache)
     else:
         st.error(f"Could not fetch exchange rates. Error: {data.get('error', 'Unknown error')}")
 
@@ -119,7 +127,8 @@ def display_card_info(soup, cache):
             
             # Display the card in the appropriate column
             with cols[index % 4]:
-                st.image(image_url, caption=card_name, use_column_width=True)
+                st.markdown(f"<h5 style='text-align:center;'>{card_name}</h5>", unsafe_allow_html=True)
+                st.image(image_url, caption="", use_column_width=True)
                 for card in cards:
                     # Convert currency
                     price_aud, price_yen = fetch_and_convert_currency(card['price_usd'], cache)
