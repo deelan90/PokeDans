@@ -1,68 +1,60 @@
 import streamlit as st
-import requests
 from bs4 import BeautifulSoup
+import requests
 from datetime import datetime
 
-# Function to fetch high-resolution image
+# Function to fetch the collection page
+def fetch_collection_page():
+    try:
+        url = "URL_OF_YOUR_COLLECTION_PAGE"  # Replace with the actual URL
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        print("Page fetched successfully.")
+        return soup
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching the collection page: {e}")
+        print(f"Page Fetching Error: {e}")
+        return None
+
+# Function to fetch high-resolution images
 def get_high_res_image(card_link):
     try:
-        response = requests.get(card_link)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            image_url = soup.find('img', class_='js-card-image')['src']
-            return image_url
+        full_url = f"https://www.pricecharting.com{card_link}"
+        response = requests.get(full_url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        img_tag = soup.find('img', {'id': 'main-image'})
+        if img_tag:
+            return img_tag['src']
         else:
-            st.error(f"Error fetching high-resolution image: {response.status_code}")
+            return None
     except Exception as e:
         st.error(f"Error fetching high-resolution image: {e}")
-    return None
+        print(f"Image Fetching Error: {e}")
+        return None
 
-# Function to fetch and convert currency rates
-def fetch_and_convert_currency(price_usd):
+# Function to fetch and convert currency
+def fetch_and_convert_currency(amount_in_usd):
     try:
         response = requests.get("https://www.xe.com/currencycharts/?from=USD&to=AUD")
-        soup = BeautifulSoup(response.content, 'html.parser')
-        rate_aud = float(soup.find_all('td', class_='sc-621fdd77-1 keQHwf')[1].text.strip())
+        soup = BeautifulSoup(response.text, 'html.parser')
+        aud_rate = float(soup.find_all('td', class_='sc-621fdd77-1 keQHwf')[1].text.strip())
         
         response = requests.get("https://www.xe.com/currencycharts/?from=USD&to=JPY")
-        soup = BeautifulSoup(response.content, 'html.parser')
-        rate_yen = float(soup.find_all('td', class_='sc-621fdd77-1 keQHwf')[1].text.strip())
+        soup = BeautifulSoup(response.text, 'html.parser')
+        jpy_rate = float(soup.find_all('td', class_='sc-621fdd77-1 keQHwf')[1].text.strip())
+        
+        rate_aud = amount_in_usd * aud_rate
+        rate_yen = amount_in_usd * jpy_rate
 
-        st.write(f"Rates fetched: AUD/USD={rate_aud}, USD/JPY={rate_yen}")
-
-        price_aud = price_usd * rate_aud
-        price_yen = price_usd * rate_yen
-
-        return price_aud, price_yen
+        print(f"Rates fetched: AUD/USD={rate_aud}, USD/JPY={rate_yen}")
+        return rate_aud, rate_yen
     except Exception as e:
         st.error(f"Error fetching currency rates: {e}")
-        st.write(f"Currency rates could not be fetched.")
+        print(f"Currency Fetching Error: {e}")
         return None, None
 
-# Function to fetch total value and count from the summary table
-# Function to fetch total value and count from the summary table
-def fetch_total_value_and_count(soup):
-    try:
-        summary_table = soup.find('table', id='summary')
-        if not summary_table:
-            raise ValueError("Summary table not found.")
-
-        value_elements = summary_table.find_all('td', class_='number js-value js-price')
-        count_elements = summary_table.find_all('td', class_='number')
-
-        if not value_elements or not count_elements:
-            raise ValueError("Value or count elements not found in summary table.")
-
-        total_value_usd = float(value_elements[0].text.strip().replace('$', '').replace(',', ''))
-        card_count = int(count_elements[1].text.strip().replace(',', ''))
-        return total_value_usd, card_count
-
-    except Exception as e:
-        st.error(f"Error fetching total value and count: {e}")
-        st.write(f"Total value and count could not be fetched.")
-        return None, None
-
-# Function to display card information
 # Function to fetch and display card information
 def display_card_info(soup, rate_aud, rate_yen):
     cards = {}
@@ -73,11 +65,9 @@ def display_card_info(soup, rate_aud, rate_yen):
                 card_link = card.find('p', class_='title').find('a')['href']
                 card_image_url = get_high_res_image(card_link)
 
-                # Fetching grading and price
                 grading = card.find('td', class_='includes').text.strip()
                 price = card.find('td', class_='price').text.strip().replace('$', '').replace(',', '')
 
-                # Convert prices to AUD and JPY
                 price_aud = float(price) * rate_aud if price else 'N/A'
                 price_yen = float(price) * rate_yen if price else 'N/A'
 
@@ -104,45 +94,53 @@ def display_card_info(soup, rate_aud, rate_yen):
         st.error(f"An error occurred while displaying cards: {e}")
         print(f"Display Error: {e}")
 
-    for card_name, card_data in cards.items():
-        st.image(card_data['image'], width=300)
-        st.markdown(f"**{card_name}**")
-        for grading, price_aud, price_yen in card_data['gradings']:
-            aud_display = f"${price_aud:.2f} AUD" if price_aud is not None else "N/A AUD"
-            yen_display = f"¥{price_yen:.2f} JPY" if price_yen is not None else "N/A JPY"
-            st.markdown(f"**{grading}:** {aud_display} | {yen_display}")
-        st.write("---")
-
-# Main function to run the app
-def main():
-    st.title("PokéDan")
-    
-    # Fetch and parse the collection page
+# Function to fetch total value and count
+def fetch_total_value_and_count(soup):
     try:
-        response = requests.get('https://www.example.com/your-collection-page')
-        soup = BeautifulSoup(response.content, 'html.parser')
-        st.write("Page fetched successfully.")
+        summary_table = soup.find('table', {'id': 'summary'})
+        if summary_table:
+            total_value_usd = summary_table.find('td', class_='js-value').text.strip().replace('$', '').replace(',', '')
+            card_count = summary_table.find_all('td', class_='number')[1].text.strip()
+            return float(total_value_usd), int(card_count)
+        else:
+            st.error("Total value or count not found in the summary table.")
+            print("Summary Table Parsing Error")
+            return None, None
     except Exception as e:
-        st.error(f"Error fetching the page: {e}")
-        return
-    
-    # Fetch currency rates
-    rate_aud, rate_yen = fetch_and_convert_currency(1.0)
+        st.error(f"Error fetching total value and count: {e}")
+        print(f"Total Value Fetching Error: {e}")
+        return None, None
 
-    # Fetch total collection value and count
-    total_value_usd, card_count = fetch_total_value_and_count(soup)
-    if total_value_usd is not None:
-        total_value_aud, total_value_yen = fetch_and_convert_currency(total_value_usd)
-        st.markdown(f"<h3 style='text-align: center;'>Total Collection Value: ${total_value_aud:.2f} AUD | ¥{total_value_yen:.2f} JPY</h3>", unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align: center; color: lightgray;'>Total cards: {card_count}</p>", unsafe_allow_html=True)
-        st.markdown(f"**Last updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+# Main function
+def main():
+    # Fetch and parse the page
+    soup = fetch_collection_page()
+
+    if soup:
+        print("Page fetched successfully.")
+        
+        # Fetch currency rates
+        rate_aud, rate_yen = fetch_and_convert_currency(1.0)
+        
+        if rate_aud and rate_yen:
+            # Fetch total collection value and count
+            total_value_usd, card_count = fetch_total_value_and_count(soup)
+            if total_value_usd is not None:
+                total_value_aud, total_value_yen = total_value_usd * rate_aud, total_value_usd * rate_yen
+                st.markdown(f"<h3 style='text-align: center;'>Total Collection Value: {total_value_aud:.2f} AUD | {total_value_yen:.2f} JPY</h3>", unsafe_allow_html=True)
+                st.markdown(f"<p style='text-align: center; color: lightgray;'>Total Cards: {card_count}</p>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<h3 style='text-align: center;'>Total Collection Value: Not available</h3>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<h3 style='text-align: center;'>Total Collection Value: Not available</h3>", unsafe_allow_html=True)
+        
+        # Display card info
+        display_card_info(soup, rate_aud, rate_yen)
+        
+        # Last updated time
+        st.markdown(f"**Last updated:** {datetime.now()}")
     else:
-        st.markdown(f"<h3 style='text-align: center;'>Total Collection Value: Not available</h3>", unsafe_allow_html=True)
-
-    # Display card info
-    st.markdown("---")
-    display_card_info(soup, rate_aud, rate_yen)
-    st.markdown(f"**Last updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        st.error("Failed to fetch the collection page.")
 
 if __name__ == "__main__":
     main()
