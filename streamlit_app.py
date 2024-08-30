@@ -99,12 +99,11 @@ def get_high_res_image(card_link):
 
 # Function to display card information
 def display_card_info(soup, cache):
+    card_groups = defaultdict(list)
+    
     card_rows = soup.find_all('tr', class_='offer')
-
-    cols = st.columns(4)  # Create 4 columns
-    for index, card in enumerate(card_rows):
+    for card in card_rows:
         try:
-            # Extract card information
             card_name_tag = card.find('a')
             if not card_name_tag:
                 continue
@@ -113,33 +112,40 @@ def display_card_info(soup, cache):
             grading = card.find('td', class_='includes').text.strip()
             price_usd = card.find('span', class_='js-price').text.strip()
             additional_info = card_name_tag.find_next('br').next_sibling.strip() if card_name_tag.find_next('br') else ''
-            
-            # Fetch high-resolution image
+            card_groups[(card_name, card_link)].append({
+                'grading': grading,
+                'price_usd': price_usd,
+                'additional_info': additional_info
+            })
+        except Exception as e:
+            st.error(f"An error occurred while processing a card: {e}")
+    
+    cols = st.columns(4)  # Create 4 columns
+    for index, ((card_name, card_link), cards) in enumerate(card_groups.items()):
+        try:
             image_url = get_high_res_image(card_link)
-
-            # Convert currency
-            price_aud, price_yen = fetch_and_convert_currency(price_usd, cache)
-
+            
             with cols[index % 4]:
-                # Display the card name as a link
+                # Card name as a link
                 st.markdown(f"<a href='https://www.pricecharting.com{card_link}' style='text-decoration: none;'><h5 style='text-align:center; color: white;'>{card_name}</h5></a>", unsafe_allow_html=True)
                 st.image(image_url, caption="", use_column_width=True)
-
+                
                 # Display additional info below the image
-                if additional_info:
-                    st.markdown(f"<p style='text-align: center; color: #A0A0A0; font-size: 12px;'>{additional_info}</p>", unsafe_allow_html=True)
+                if cards[0]['additional_info']:
+                    st.markdown(f"<p style='text-align: center; color: #A0A0A0; font-size: 12px;'>{cards[0]['additional_info']}</p>", unsafe_allow_html=True)
 
-                # Display grading and prices
-                if price_aud != 0.0 and price_yen != 0.0:
-                    st.markdown(f"""
-                    <div style="background-color: #333; padding: 5px; border-radius: 5px; text-align: center;">
-                        <h6 style="color: white; font-family: 'Arial'; margin-bottom: 2px; font-size: 16px;">{grading}</h6>
-                        <p style="color: white; font-size: 13px; margin: 2px 0;">AUD $ {price_aud:.2f}</p>
-                        <p style="color: white; font-size: 13px; margin: 2px 0;">YEN ¥ {price_yen:.2f}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.write("Conversion failed. Check rates or values.")
+                for card in cards:
+                    price_aud, price_yen = fetch_and_convert_currency(card['price_usd'], cache)
+                    if price_aud != 0.0 and price_yen != 0.0:
+                        st.markdown(f"""
+                        <div style="background-color: #333; padding: 3px; border-radius: 5px; text-align: center;">
+                            <h6 style="color: white; font-family: 'Arial'; margin-bottom: 2px; font-size: 16px;">{card['grading']}</h6>
+                            <p style="color: white; font-size: 13px; margin: 2px 0;">AUD $ {price_aud:.2f}</p>
+                            <p style="color: white; font-size: 13px; margin: 2px 0;">YEN ¥ {price_yen:.2f}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.write("Conversion failed. Check rates or values.")
         except Exception as e:
             st.error(f"An error occurred while displaying the card: {e}")
 
