@@ -100,7 +100,7 @@ def get_high_res_image(card_link):
 # Function to display card information
 def display_card_info(soup, cache):
     card_rows = soup.find_all('tr', class_='offer')
-    
+
     cols = st.columns(4)  # Create 4 columns
     for index, card in enumerate(card_rows):
         try:
@@ -116,7 +116,7 @@ def display_card_info(soup, cache):
             
             # Fetch high-resolution image
             image_url = get_high_res_image(card_link)
-            
+
             # Convert currency
             price_aud, price_yen = fetch_and_convert_currency(price_usd, cache)
 
