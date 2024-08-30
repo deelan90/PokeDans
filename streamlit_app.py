@@ -24,10 +24,12 @@ def fetch_exchange_rate(from_currency, to_currency):
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Find the rate in the page (the exact tag/class may need adjustment based on the site's structure)
-    rate_tag = soup.find('span', class_='uccResultAmount')
+    # Find the rate in the page based on the provided HTML structure
+    rate_tag = soup.find('p', class_='sc-b39d611a-0 hjhFZZ', text=lambda x: x and f"1 {from_currency} = " in x)
     if rate_tag:
-        return float(rate_tag.text.strip())
+        rate_text = rate_tag.text.strip()
+        rate_value = rate_text.split('=')[1].strip().split(' ')[0]
+        return float(rate_value)
     else:
         st.error(f"Could not fetch exchange rate for {from_currency} to {to_currency}")
         return None
@@ -90,8 +92,11 @@ def display_card_info(soup):
                 for card in cards:
                     # Convert currency
                     price_aud, price_yen = fetch_and_convert_currency(card['price_usd'])
-                    st.write(f"Grading: **{card['grading']}**")
-                    st.write(f"Value: ${price_aud:.2f} AUD / ¥{price_yen:.2f} Yen")
+                    if price_aud is not None and price_yen is not None:
+                        st.write(f"Grading: **{card['grading']}**")
+                        st.write(f"Value: ${price_aud:.2f} AUD / ¥{price_yen:.2f} Yen")
+                    else:
+                        st.write("Could not fetch conversion rates.")
         except Exception as e:
             st.error(f"An error occurred while displaying the card: {e}")
 
