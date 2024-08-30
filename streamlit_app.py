@@ -1,28 +1,45 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
-from collections import defaultdict
+from datetime import datetime, timedelta
+import pickle
+
+CACHE_FILE = "cache.pkl"
+
+# Load cache from file
+def load_cache():
+    try:
+        with open(CACHE_FILE, "rb") as f:
+            return pickle.load(f)
+    except (FileNotFoundError, EOFError):
+        return {}
+
+# Save cache to file
+def save_cache(cache):
+    with open(CACHE_FILE, "wb") as f:
+        pickle.dump(cache, f)
 
 # Function to fetch and convert currency using real-time rates from Fixer API
-def fetch_and_convert_currency(usd_value):
+def fetch_and_convert_currency(usd_value, cache):
     try:
-        # Fetch exchange rates from Fixer API
-        rate_aud = fetch_exchange_rate("AUD")
-        rate_yen = fetch_exchange_rate("JPY")
+        current_time = datetime.now()
+        rate_aud = cache.get('rate_aud')
+        rate_yen = cache.get('rate_yen')
+        last_update = cache.get('last_update')
 
-        # Debugging: Print fetched rates
-        st.write(f"Fetched exchange rates: 1 USD = {rate_aud} AUD, 1 USD = {rate_yen} JPY")
-
-        if rate_aud is None or rate_yen is None:
-            raise ValueError("Exchange rate fetching failed.")
-
+        # Check if cache is older than 12 hours
+        if not last_update or current_time - last_update > timedelta(hours=12):
+            # Fetch exchange rates from Fixer API
+            rate_aud = fetch_exchange_rate("AUD")
+            rate_yen = fetch_exchange_rate("JPY")
+            cache['rate_aud'] = rate_aud
+            cache['rate_yen'] = rate_yen
+            cache['last_update'] = current_time
+            save_cache(cache)
+        # Convert USD to AUD and JPY
         value_usd = float(usd_value.replace('$', '').replace(',', '').strip())
         value_aud = value_usd * rate_aud
         value_yen = value_usd * rate_yen
-
-        # Debugging: Print conversion results
-        st.write(f"Converted values: {value_usd} USD = {value_aud} AUD, {value_usd} USD = {value_yen} JPY")
 
         return value_aud, value_yen
     except ValueError as e:
@@ -31,7 +48,8 @@ def fetch_and_convert_currency(usd_value):
 
 # Function to fetch exchange rates from Fixer API
 def fetch_exchange_rate(target_currency):
-    api_key = "06d2909fdfd0f16758ebd7daf503cb6b"  # Replace with your Fixer API key
+    api_key = "06d2909fdfd0f16758ebd7daf503cb6b
+"  # Replace with your Fixer API key
     url = f"http://data.fixer.io/api/latest?access_key={api_key}&symbols=USD,{target_currency}&format=1"
     
     response = requests.get(url)
@@ -46,14 +64,25 @@ def fetch_exchange_rate(target_currency):
         return None
 
 # Function to fetch total value and card count
-def fetch_total_value_and_count(soup):
-    try:
-        summary_table = soup.find('table', id='summary')
-        total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
-        total_count = summary_table.find_all('td', class_='number')[-1].text.strip()
-        return total_value_usd, total_count
-    except AttributeError:
-        return None, None
+def fetch_total_value_and_count(soup, cache):
+    current_time = datetime.now()
+    total_value_usd = cache.get('total_value_usd')
+    total_count = cache.get('total_count')
+    last_update = cache.get('last_update')
+
+    # Check if cache is older than 12 hours
+    if not last_update or current_time - last_update > timedelta(hours=12):
+        try:
+            summary_table = soup.find('table', id='summary')
+            total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
+            total_count = summary_table.find_all('td', class_='number')[-1].text.strip()
+            cache['total_value_usd'] = total_value_usd
+            cache['total_count'] = total_count
+            cache['last_update'] = current_time
+            save_cache(cache)
+        except AttributeError:
+            st.error("Error fetching total value and card count.")
+    return total_value_usd, total_count
 
 # Function to fetch high-resolution images
 def get_high_res_image(card_link):
@@ -68,7 +97,7 @@ def get_high_res_image(card_link):
         return None
 
 # Function to display card information
-def display_card_info(soup):
+def display_card_info(soup, cache):
     card_groups = defaultdict(list)
     
     # Group cards by name
@@ -102,16 +131,25 @@ def display_card_info(soup):
                 st.image(image_url, caption=card_name, use_column_width=True)
                 for card in cards:
                     # Convert currency
-                    price_aud, price_yen = fetch_and_convert_currency(card['price_usd'])
+                    price_aud, price_yen = fetch_and_convert_currency(card['price_usd'], cache)
                     if price_aud != 0.0 and price_yen != 0.0:
-                        st.write(f"Grading: **{card['grading']}**")
-                        st.write(f"Value: ${price_aud:.2f} AUD / ¥{price_yen:.2f} Yen")
+                        # Use custom HTML for displaying the card information
+                        st.markdown(f"""
+                        <div style="background-color: #333; padding: 10px; border-radius: 5px; text-align: center;">
+                            <h4 style="color: #FFCC00; font-family: 'Arial'; margin-bottom: 5px;">{card['grading']}</h4>
+                            <p style="color: white; font-size: 14px; margin: 5px 0;">AUD $ {price_aud:.2f}</p>
+                            <p style="color: white; font-size: 14px; margin: 5px 0;">YEN ¥ {price_yen:.2f}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                     else:
                         st.write("Conversion failed. Check rates or values.")
         except Exception as e:
             st.error(f"An error occurred while displaying the card: {e}")
 
 def main():
+    # Load cache
+    cache = load_cache()
+
     # Set the title and subtitle
     st.markdown("<h1 style='text-align: center; color: #FFCC00; font-family: \"Pokemon Solid\";'>PokéDan</h1>", unsafe_allow_html=True)
     
@@ -121,9 +159,9 @@ def main():
     soup = BeautifulSoup(response.content, 'html.parser')
 
     # Fetch total value and count
-    total_value_usd, total_count = fetch_total_value_and_count(soup)
+    total_value_usd, total_count = fetch_total_value_and_count(soup, cache)
     if total_value_usd:
-        total_value_aud, total_value_yen = fetch_and_convert_currency(total_value_usd)
+        total_value_aud, total_value_yen = fetch_and_convert_currency(total_value_usd, cache)
         st.write(f"Total Collection Value: **${total_value_aud:.2f} AUD / ¥{total_value_yen:.2f} Yen**", unsafe_allow_html=True)
     else:
         st.write("Total Collection Value: Not available", unsafe_allow_html=True)
@@ -134,7 +172,7 @@ def main():
         st.write("Total Cards: Not available", unsafe_allow_html=True)
 
     # Display card info
-    display_card_info(soup)
+    display_card_info(soup, cache)
 
     # Last updated time
     st.markdown(f"**Last updated:** {datetime.now()}")
