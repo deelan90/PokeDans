@@ -15,9 +15,21 @@ def get_exchange_rates():
         soup_aud = BeautifulSoup(response_aud.content, 'html.parser')
         soup_jpy = BeautifulSoup(response_jpy.content, 'html.parser')
         
-        rate_aud = float(soup_aud.find('tr', {'data-sleek-node-id': '240706'}).find_all('td')[1].text.strip())
-        rate_yen = float(soup_jpy.find('tr', {'data-sleek-node-id': 'e604a2'}).find_all('td')[1].text.strip())
-
+        # Add error handling for cases where the expected HTML structure is not found
+        rate_aud = None
+        rate_yen = None
+        
+        aud_row = soup_aud.find('tr', {'data-sleek-node-id': '240706'})
+        if aud_row:
+            rate_aud = float(aud_row.find_all('td')[1].text.strip())
+        
+        jpy_row = soup_jpy.find('tr', {'data-sleek-node-id': 'e604a2'})
+        if jpy_row:
+            rate_yen = float(jpy_row.find_all('td')[1].text.strip())
+        
+        if rate_aud is None or rate_yen is None:
+            raise ValueError("Currency rates could not be fetched.")
+        
         return rate_aud, rate_yen
     except Exception as e:
         st.error(f"Error fetching currency rates: {e}")
@@ -27,9 +39,15 @@ def get_exchange_rates():
 def fetch_total_value(soup):
     try:
         summary_table = soup.find('table', id='summary')
-        total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
-        total_count = summary_table.find_all('td', class_='number')[1].text.strip()
-        return float(total_value_usd), int(total_count)
+        if summary_table:
+            total_value_usd = summary_table.find('td', class_='js-value js-price')
+            total_count = summary_table.find_all('td', class_='number')
+            
+            if total_value_usd and total_count:
+                total_value_usd = float(total_value_usd.text.strip().replace('$', '').replace(',', ''))
+                total_count = int(total_count[1].text.strip())
+                return total_value_usd, total_count
+        raise ValueError("Total value or count not found in the summary table.")
     except Exception as e:
         st.error(f"Error fetching total value and count: {e}")
         return None, None
@@ -52,11 +70,23 @@ def display_card_info(soup, rate_aud, rate_yen):
     
     for card in soup.find_all('tr', class_='offer'):
         try:
-            card_name = card.find('p', class_='title').find('a').text.strip()
-            card_link = card.find('p', class_='title').find('a')['href']
+            # Skip header rows by checking if the row contains the expected data elements
+            if not card.find('p', class_='title'):
+                continue
+
+            card_name_tag = card.find('p', class_='title')
+            if card_name_tag is None:
+                raise ValueError("Card name tag not found.")
+            
+            card_name = card_name_tag.find('a').text.strip()
+            card_link = card_name_tag.find('a')['href']
             card_image_url = get_high_res_image(card_link)
             grading = card.find('td', class_='includes').text.strip()
-            price_usd = float(card.find('td', class_='price').find('span', class_='js-price').text.strip().replace('$', ''))
+            price_usd_tag = card.find('td', class_='price').find('span', class_='js-price')
+            if price_usd_tag is None:
+                raise ValueError("Price tag not found.")
+            
+            price_usd = float(price_usd_tag.text.strip().replace('$', ''))
             
             # Convert price to AUD and JPY
             if rate_aud and rate_yen:
@@ -83,6 +113,7 @@ def display_card_info(soup, rate_aud, rate_yen):
             yen_display = f"¥{price_yen:.2f} JPY" if price_yen is not None else "N/A JPY"
             st.markdown(f"**{grading}:** {aud_display} | {yen_display}")
         st.write("---")
+
 
 # Main function
 def main():
