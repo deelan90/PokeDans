@@ -40,12 +40,23 @@ def fetch_and_convert_currency(price_usd):
         return None, None
 
 # Function to fetch total value and count from the summary table
+# Function to fetch total value and count from the summary table
 def fetch_total_value_and_count(soup):
     try:
         summary_table = soup.find('table', id='summary')
-        total_value_usd = float(summary_table.find_all('td', class_='number js-value js-price')[0].text.strip().replace('$', '').replace(',', ''))
-        card_count = int(summary_table.find_all('td', class_='number')[1].text.strip().replace(',', ''))
+        if not summary_table:
+            raise ValueError("Summary table not found.")
+
+        value_elements = summary_table.find_all('td', class_='number js-value js-price')
+        count_elements = summary_table.find_all('td', class_='number')
+
+        if not value_elements or not count_elements:
+            raise ValueError("Value or count elements not found in summary table.")
+
+        total_value_usd = float(value_elements[0].text.strip().replace('$', '').replace(',', ''))
+        card_count = int(count_elements[1].text.strip().replace(',', ''))
         return total_value_usd, card_count
+
     except Exception as e:
         st.error(f"Error fetching total value and count: {e}")
         st.write(f"Total value and count could not be fetched.")
