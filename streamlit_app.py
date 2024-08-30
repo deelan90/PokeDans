@@ -49,29 +49,36 @@ def fetch_and_convert_currency(usd_value, cache):
 
 # Function to fetch exchange rates from Fixer API and update the cache
 def update_exchange_rates(cache):
-    # Rotate between API keys
-    api_key = API_KEYS[len(API_KEYS) % 2]  # Alternates between the two keys
-    url = f"http://data.fixer.io/api/latest?access_key={api_key}&symbols=USD,AUD,JPY&format=1"
-    
-    response = requests.get(url)
-    data = response.json()
-    
-    if response.status_code == 200 and data.get('success'):
-        # Conversion rates
-        rate_aud = data['rates'].get('AUD') / data['rates'].get('USD')
-        rate_yen = data['rates'].get('JPY') / data['rates'].get('USD')
+    for api_key in API_KEYS:
+        url = f"http://data.fixer.io/api/latest?access_key={api_key}&symbols=USD,AUD,JPY&format=1"
+        
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an error for bad status codes
+            data = response.json()
+            
+            if response.status_code == 200 and data.get('success'):
+                # Conversion rates
+                rate_aud = data['rates'].get('AUD') / data['rates'].get('USD')
+                rate_yen = data['rates'].get('JPY') / data['rates'].get('USD')
 
-        # Ensure rates are not None
-        if rate_aud is None or rate_yen is None:
-            st.error("Failed to retrieve valid exchange rates. Please try again later.")
-        else:
-            # Update cache
-            cache['rate_aud'] = rate_aud
-            cache['rate_yen'] = rate_yen
-            cache['last_update'] = datetime.now()
-            save_cache(cache)
-    else:
-        st.error(f"Could not fetch exchange rates. Error: {data.get('error', 'Unknown error')}")
+                # Ensure rates are not None
+                if rate_aud is not None and rate_yen is not None:
+                    # Update cache
+                    cache['rate_aud'] = rate_aud
+                    cache['rate_yen'] = rate_yen
+                    cache['last_update'] = datetime.now()
+                    save_cache(cache)
+                    st.success("Exchange rates successfully updated.")
+                    return
+                else:
+                    st.error("Failed to retrieve valid exchange rates. Please try again later.")
+            else:
+                st.error(f"Failed to fetch exchange rates with API key {api_key}. Error: {data.get('error', 'Unknown error')}")
+        except requests.exceptions.RequestException as e:
+            st.error(f"Request failed: {e}")
+    
+    st.error("All API attempts failed. Please check your API keys or network connection.")
 
 # Function to fetch total value and card count
 def fetch_total_value_and_count(soup, cache):
