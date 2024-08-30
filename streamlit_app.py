@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-from forex_python.converter import CurrencyRates
 from datetime import datetime
 
 # Function to fetch and convert currency
@@ -9,17 +8,28 @@ def fetch_and_convert_currency(usd_value, rate_aud, rate_yen):
     try:
         value_usd = float(usd_value.replace('$', '').replace(',', '').strip())
         value_aud = value_usd * rate_aud
-        value_yen = value_usd * rate_yen
+        value_yen = value_aud * rate_yen
         return value_aud, value_yen
     except ValueError:
         return None, None
 
-# Function to get exchange rates
+# Function to scrape exchange rates from XE.com
 def get_exchange_rates():
-    c = CurrencyRates()
-    rate_aud = c.get_rate('USD', 'AUD')
-    rate_yen = c.get_rate('USD', 'JPY')
-    return rate_aud, rate_yen
+    try:
+        # Scrape AUD/USD
+        aud_response = requests.get("https://www.xe.com/currencycharts/?from=USD&to=AUD")
+        aud_soup = BeautifulSoup(aud_response.content, 'html.parser')
+        aud_rate = float(aud_soup.find('tr', {'data-sleek-node-id': '240706'}).find_all('td')[1].text.strip())
+
+        # Scrape USD/JPY
+        yen_response = requests.get("https://www.xe.com/currencycharts/?from=USD&to=JPY")
+        yen_soup = BeautifulSoup(yen_response.content, 'html.parser')
+        yen_rate = float(yen_soup.find('tr', {'data-sleek-node-id': 'e604a2'}).find_all('td')[1].text.strip())
+
+        return aud_rate, yen_rate
+    except Exception as e:
+        st.error(f"Error fetching currency rates: {e}")
+        return None, None
 
 # Function to fetch total value and card count
 def fetch_total_value_and_count(soup):
@@ -81,6 +91,10 @@ def main():
 
     # Fetch exchange rates
     rate_aud, rate_yen = get_exchange_rates()
+
+    if rate_aud is None or rate_yen is None:
+        st.error("Currency rates could not be fetched.")
+        return
 
     # Fetch total value and count
     total_value_usd, total_count = fetch_total_value_and_count(soup)
