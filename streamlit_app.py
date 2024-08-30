@@ -11,15 +11,15 @@ def get_exchange_rates():
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
-        
-        rate_jpy = soup.find('tr', {'data-sleek-node-id': 'e604a2'}).find_all('td')[1].text.strip()
 
-        url = "https://www.xe.com/currencycharts/?from=AUD&to=USD"
+        rate_jpy = soup.find('td', text='USD / JPY').find_next_sibling('td').text.strip()
+        
+        url = "https://www.xe.com/currencycharts/?from=USD&to=AUD"
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
-        
-        rate_aud = soup.find('tr', {'data-sleek-node-id': '240706'}).find_all('td')[1].text.strip()
+
+        rate_aud = soup.find('td', text='AUD / USD').find_next_sibling('td').text.strip()
 
         return float(rate_aud), float(rate_jpy)
     except Exception as e:
@@ -30,9 +30,12 @@ def get_exchange_rates():
 def fetch_total_value(soup):
     try:
         summary_table = soup.find('table', {'id': 'summary'})
-        total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
-        total_count = summary_table.find_all('td', class_='number')[1].text.strip()
-        return float(total_value_usd), int(total_count)
+        if summary_table:
+            total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
+            total_count = summary_table.find_all('td', class_='number')[1].text.strip()
+            return float(total_value_usd), int(total_count)
+        else:
+            raise ValueError("Summary table not found")
     except Exception as e:
         st.error(f"Error fetching total value and count: {e}")
         return None, None
