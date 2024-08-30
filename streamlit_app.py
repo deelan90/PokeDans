@@ -117,10 +117,13 @@ def display_card_info(soup, cache):
             card_link = card.find('a')['href']
             grading = card.find('td', class_='includes').text.strip()
             price_usd = card.find('span', class_='js-price').text.strip()
+            # Fetch additional text under the card name
+            additional_info = card_name_tag.find_next('br').next_sibling.strip() if card_name_tag.find_next('br') else ''
             card_groups[card_name].append({
                 'link': card_link,
                 'grading': grading,
                 'price_usd': price_usd,
+                'additional_info': additional_info
             })
         except Exception as e:
             st.error(f"An error occurred while processing a card: {e}")
@@ -134,8 +137,14 @@ def display_card_info(soup, cache):
             
             # Display the card in the appropriate column
             with cols[index % 4]:
-                st.markdown(f"<h5 style='text-align:center;'>{card_name}</h5>", unsafe_allow_html=True)
+                # Card name as a link
+                st.markdown(f"<a href='https://www.pricecharting.com{cards[0]['link']}' style='text-decoration: none;'><h5 style='text-align:center; color: white;'>{card_name}</h5></a>", unsafe_allow_html=True)
                 st.image(image_url, caption="", use_column_width=True)
+                
+                # Display additional info below the image
+                if cards[0]['additional_info']:
+                    st.markdown(f"<p style='text-align: center; color: #A0A0A0; font-size: 12px;'>{cards[0]['additional_info']}</p>", unsafe_allow_html=True)
+                
                 for card in cards:
                     # Convert currency
                     price_aud, price_yen = fetch_and_convert_currency(card['price_usd'], cache)
@@ -143,9 +152,9 @@ def display_card_info(soup, cache):
                         # Use custom HTML for displaying the card information
                         st.markdown(f"""
                         <div style="background-color: #333; padding: 10px; border-radius: 5px; text-align: center;">
-                            <h4 style="color: #FFCC00; font-family: 'Arial'; margin-bottom: 5px;">{card['grading']}</h4>
-                            <p style="color: white; font-size: 14px; margin: 5px 0;">AUD $ {price_aud:.2f}</p>
-                            <p style="color: white; font-size: 14px; margin: 5px 0;">YEN ¥ {price_yen:.2f}</p>
+                            <h6 style="color: white; font-family: 'Arial'; margin-bottom: 5px; font-size: 16px;">{card['grading']}</h6>
+                            <p style="color: white; font-size: 13px; margin: 5px 0;">AUD $ {price_aud:.2f}</p>
+                            <p style="color: white; font-size: 13px; margin: 5px 0;">YEN ¥ {price_yen:.2f}</p>
                         </div>
                         """, unsafe_allow_html=True)
                     else:
@@ -162,9 +171,22 @@ def main():
     if not last_update or datetime.now() - last_update > timedelta(hours=12):
         update_exchange_rates(cache)
 
+    # Set the page to dark mode
+    st.markdown(
+        """
+        <style>
+        body {
+            background-color: #0E1117;
+            color: #C9D1D9;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     # Set the title and subtitle
     st.markdown("<h1 style='text-align: center; color: #FFCC00; font-family: \"Pokemon Solid\";'>PokéDan</h1>", unsafe_allow_html=True)
-    
+
     # Link to collection page
     url = "https://www.pricecharting.com/offers?status=collection&seller=yx5zdzzvnnhyvjeffskx64pus4&sort=name&category=all&folder-id=&condition-id=all"
     response = requests.get(url)
@@ -174,7 +196,7 @@ def main():
     total_value_usd, total_count = fetch_total_value_and_count(soup, cache)
     if total_value_usd:
         total_value_aud, total_value_yen = fetch_and_convert_currency(total_value_usd, cache)
-        st.write(f"Total Collection Value: **${total_value_aud:.2f} AUD / ¥{total_value_yen:.2f} Yen**", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; color: #A0A0A0;'>Total Collection Value: AUD ${total_value_aud:.2f} / YEN ¥{total_value_yen:.2f}</p>", unsafe_allow_html=True)
     else:
         st.write("Total Collection Value: Not available", unsafe_allow_html=True)
 
@@ -187,7 +209,7 @@ def main():
     display_card_info(soup, cache)
 
     # Last updated time
-    st.markdown(f"**Last updated:** {datetime.now()}")
+    st.markdown(f"**Last updated:** {datetime.now()}", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
