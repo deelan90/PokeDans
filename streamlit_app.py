@@ -7,7 +7,7 @@ import re
 # Function to fetch the collection page
 def fetch_collection_page():
     try:
-        url = "URL_OF_YOUR_COLLECTION_PAGE"  # Replace with the actual URL
+        url = "https://www.pricecharting.com/offers?status=collection&seller=yx5zdzzvnnhyvjeffskx64pus4&sort=name&category=all&folder-id=&condition-id=all"  # Replace with the actual URL
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
