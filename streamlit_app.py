@@ -2,6 +2,7 @@ import streamlit as st
 from bs4 import BeautifulSoup
 import requests
 from datetime import datetime
+import re
 
 # Function to fetch the collection page
 def fetch_collection_page():
@@ -66,10 +67,17 @@ def display_card_info(soup, rate_aud, rate_yen):
                 card_image_url = get_high_res_image(card_link)
 
                 grading = card.find('td', class_='includes').text.strip()
-                price = card.find('td', class_='price').text.strip().replace('$', '').replace(',', '')
+                price_text = card.find('td', class_='price').text.strip()
 
-                price_aud = float(price) * rate_aud if price else 'N/A'
-                price_yen = float(price) * rate_yen if price else 'N/A'
+                # Extract numeric price using regular expression
+                price_match = re.search(r"\d+\.\d+", price_text)
+                if price_match:
+                    price = price_match.group()
+                else:
+                    price = 'N/A'
+
+                price_aud = float(price) * rate_aud if price != 'N/A' else 'N/A'
+                price_yen = float(price) * rate_yen if price != 'N/A' else 'N/A'
 
                 if card_name not in cards:
                     cards[card_name] = {
