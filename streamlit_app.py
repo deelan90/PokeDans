@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from collections import defaultdict
 import pickle
+import time
 
 CACHE_FILE = "cache.pkl"
 
@@ -82,7 +83,7 @@ def update_exchange_rates(cache):
     st.error("All API attempts failed. Please check your API keys or network connection.")
 
 # Function to fetch total value and card count
-def fetch_total_value_and_count(soup, cache):
+def fetch_total_value_and_count(soup):
     try:
         summary_table = soup.find('table', id='summary')
         total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
@@ -103,14 +104,21 @@ def get_high_res_image(card_link):
         st.error(f"Error fetching high-resolution image: {e}")
         return None
 
-# Function to display card information
-def display_card_info(soup, cache):
-    card_groups = defaultdict(list)
-    
-    # Group cards by name
-    card_rows = soup.find_all('tr', class_='offer')
-    for card in card_rows:
-        try:
+# Fetch all pages of cards by simulating scroll
+def fetch_all_cards(base_url):
+    all_cards = []
+    page_number = 1
+    while True:
+        url = f"{base_url}&page={page_number}"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Extract card data
+        card_rows = soup.find_all('tr', class_='offer')
+        if not card_rows:
+            break  # No more cards to load
+
+        for card in card_rows:
             card_name_tag = card.find('p', class_='title')
             if not card_name_tag:
                 continue
@@ -118,26 +126,39 @@ def display_card_info(soup, cache):
             card_link = card.find('a')['href']
             grading = card.find('td', class_='includes').text.strip()
             price_usd = card.find('span', class_='js-price').text.strip()
-            card_groups[card_name].append({
+
+            all_cards.append({
+                'name': card_name,
                 'link': card_link,
                 'grading': grading,
-                'price_usd': price_usd,
+                'price_usd': price_usd
             })
-        except Exception as e:
-            st.error(f"An error occurred while processing a card: {e}")
+
+        page_number += 1
+        time.sleep(1)  # Avoid hitting rate limits
+
+    return all_cards
+
+# Function to display card information
+def display_card_info(cards, cache):
+    card_groups = defaultdict(list)
+    
+    # Group cards by name
+    for card in cards:
+        card_groups[card['name']].append(card)
     
     # Display grouped cards
     cols = st.columns(4)  # Create 4 columns
-    for index, (card_name, cards) in enumerate(card_groups.items()):
+    for index, (card_name, card_list) in enumerate(card_groups.items()):
         try:
             # Fetch high-resolution image (using the link of the first card in the group)
-            image_url = get_high_res_image(cards[0]['link'])
+            image_url = get_high_res_image(card_list[0]['link'])
             
             # Display the card in the appropriate column
             with cols[index % 4]:
                 st.markdown(f"<h5 style='text-align:center; color: white;'>{card_name}</h5>", unsafe_allow_html=True)
                 st.image(image_url, caption="", use_column_width=True)
-                for card in cards:
+                for card in card_list:
                     # Convert currency
                     price_aud, price_yen = fetch_and_convert_currency(card['price_usd'], cache)
                     if price_aud != 0.0 and price_yen != 0.0:
@@ -181,24 +202,12 @@ def main():
 
     # Link to collection page
     url = "https://www.pricecharting.com/offers?status=collection&seller=yx5zdzzvnnhyvjeffskx64pus4&sort=name&category=all&folder-id=&condition-id=all"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-
-    # Fetch total value and count
-    total_value_usd, total_count = fetch_total_value_and_count(soup, cache)
-    if total_value_usd:
-        total_value_aud, total_value_yen = fetch_and_convert_currency(total_value_usd, cache)
-        st.markdown(f"<p style='text-align: center; color: #A0A0A0;'>Total Collection Value: AUD ${total_value_aud:.2f} / YEN ¥{total_value_yen:.2f}</p>", unsafe_allow_html=True)
-    else:
-        st.write("Total Collection Value: Not available", unsafe_allow_html=True)
-
-    if total_count:
-        st.write(f"Total Cards: **{total_count}**", unsafe_allow_html=True)
-    else:
-        st.write("Total Cards: Not available", unsafe_allow_html=True)
+    
+    # Fetch all cards by simulating infinite scroll pagination
+    all_cards = fetch_all_cards(url)
 
     # Display card info
-    display_card_info(soup, cache)
+    display_card_info(all_cards, cache)
 
     # Last updated time
     st.markdown(f"**Last updated:** {datetime.now()}", unsafe_allow_html=True)
