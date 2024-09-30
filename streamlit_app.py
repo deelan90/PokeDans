@@ -131,7 +131,7 @@ def fetch_all_cards(base_url):
 
     # Use ThreadPoolExecutor to parallelize fetching pages
     with ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_page = {executor.submit(fetch_page, i): i for i in range(1, 50)}  # Fetch first 50 pages concurrently
+        future_to_page = {executor.submit(fetch_page, i): i for i in range(1, 10)}  # Fetch first 50 pages concurrently
 
         for future in future_to_page:
             cards = future.result()
