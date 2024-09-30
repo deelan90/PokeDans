@@ -101,15 +101,20 @@ def fetch_all_cards(base_url):
     all_cards = []
     seen_cards = set()  # Track unique cards to avoid duplicates
     page_number = 1
+    max_pages = 5  # Limit to 5 pages for debugging
 
-    while True:
+    while page_number <= max_pages:
         url = f"{base_url}&page={page_number}"
+        st.write(f"Fetching page {page_number}...")
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
 
         # Extract card data from current page
         card_rows = soup.find_all('tr', class_='offer')
+        st.write(f"Found {len(card_rows)} cards on page {page_number}")
+
         if not card_rows:
+            st.write("No more cards found, stopping.")
             break  # No more cards to load, break the loop
         
         for card in card_rows:
