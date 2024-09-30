@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-import json
 from datetime import datetime, timedelta
 
 # Function to load the cards using AJAX directly
@@ -12,15 +11,27 @@ def load_cards_via_ajax(base_url):
         # Constructing the AJAX URL for each subsequent page of results
         ajax_url = f"{base_url}&internal=true&page={page}"
         response = requests.get(ajax_url)
-        data = response.json()  # Assuming the response is JSON
         
-        # Break if no more data is returned
-        if not data['cards']:
+        # Check if the response is OK and attempt to decode JSON
+        if response.status_code == 200:
+            try:
+                data = response.json()  # Attempt to get JSON data
+                # Break if no more data is returned
+                if not data['cards']:
+                    break
+                all_cards.extend(data['cards'])
+                page += 1
+                st.write(f"Fetched {len(data['cards'])} cards from page {page}")
+            except ValueError:
+                # If JSON decoding fails
+                st.error("Failed to decode JSON response.")
+                st.write("Response content:", response.text[:500])  # Print first 500 characters of the response
+                break
+        else:
+            # If the response has an error status code
+            st.error(f"Failed to fetch data: {response.status_code}")
+            st.write("Response content:", response.text[:500])
             break
-        
-        all_cards.extend(data['cards'])
-        page += 1
-        st.write(f"Fetched {len(data['cards'])} cards from page {page}")
     
     return all_cards
 
