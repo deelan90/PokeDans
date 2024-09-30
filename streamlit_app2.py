@@ -8,7 +8,7 @@ CACHE_FILE = "cache.pkl"
 # Initialize Streamlit app settings
 st.set_page_config(page_title="PokéDan Card Collection", layout="wide")
 
-# API keys list
+# API keys list (if needed for currency conversion, etc.)
 API_KEYS = [
     "06d2909fdfd0f16758ebd7daf503cb6b",
     "6c10340d78e80946bc5d7d9167069540"
@@ -24,7 +24,7 @@ def load_cache():
 
 # Save cache to file
 def save_cache(cache):
-    with open(CACHE_FILE, "wb") as f:
+    with open(CACHE_FILE, "w") as f:
         json.dump(cache, f)
 
 # Function to load the cards using AJAX directly
@@ -53,6 +53,14 @@ def load_cards_via_ajax(base_url):
     
     return all_cards
 
+# Update exchange rates (if using API to convert prices)
+def update_exchange_rates(cache):
+    # Dummy function for updating exchange rates
+    # You'll need to implement this based on your actual rate fetching logic
+    cache['last_update'] = datetime.now().isoformat()
+    save_cache(cache)
+    st.write("Exchange rates updated")
+
 def main():
     st.title("PokéDan Card Collection")
 
@@ -61,9 +69,17 @@ def main():
     
     # Load cache and check for rate updates
     cache = load_cache()
-    last_update = cache.get('last_update', datetime.min)
-    if datetime.now() - datetime.fromisoformat(last_update) > timedelta(hours=12):
-        update_exchange_rates(cache)  # Function needs to be defined similar to previous discussions
+
+    # Check and convert `last_update` to datetime; initialize if missing
+    last_update = cache.get('last_update', None)
+    if last_update:
+        last_update = datetime.fromisoformat(last_update)
+    else:
+        last_update = datetime.min  # Set to earliest possible date if no update found
+
+    # Check if we need to update exchange rates (every 12 hours)
+    if datetime.now() - last_update > timedelta(hours=12):
+        update_exchange_rates(cache)
 
     # Fetch all cards by AJAX
     cards = load_cards_via_ajax(base_url)
