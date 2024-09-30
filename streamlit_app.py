@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 import pickle
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 CACHE_FILE = "cache.pkl"
 
@@ -96,22 +97,22 @@ def get_high_res_image(card_link):
         st.error(f"Error fetching high-resolution image: {e}")
         return None
 
-# Scrape all cards by simulating scrolling behavior
+# Fetch all pages of cards using ThreadPoolExecutor for parallel fetching
 def fetch_all_cards(base_url):
     all_cards = []
     seen_cards = set()  # Track unique cards to avoid duplicates
-    page_number = 1
-    
-    while True:
+
+    def fetch_page(page_number):
         url = f"{base_url}&page={page_number}"
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        # Extract card data from current page
+        # Extract card data
         card_rows = soup.find_all('tr', class_='offer')
         if not card_rows:
-            break  # No more cards to load
-        
+            return None  # No more cards to load
+
+        cards = []
         for card in card_rows:
             card_name_tag = card.find('p', class_='title')
             if not card_name_tag:
@@ -121,22 +122,31 @@ def fetch_all_cards(base_url):
             grading = card.find('td', class_='includes').text.strip()
             price_usd = card.find('span', class_='js-price').text.strip()
 
-            # Check if the card and grading already exist
+            # Use card name and grading as unique identifier to avoid duplicates
             card_identifier = f"{card_name}-{grading}"
             if card_identifier in seen_cards:
                 continue  # Skip duplicate cards
             seen_cards.add(card_identifier)
 
-            all_cards.append({
+            cards.append({
                 'name': card_name,
                 'link': card_link,
                 'grading': grading,
                 'price_usd': price_usd
             })
-        
-        page_number += 1
-        time.sleep(1)  # Pause slightly to avoid overloading the server
-    
+        return cards
+
+    # Use ThreadPoolExecutor to parallelize fetching pages
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_page = {executor.submit(fetch_page, i): i for i in range(1, 50)}  # Fetch first 50 pages concurrently
+
+        for future in future_to_page:
+            cards = future.result()
+            if cards:
+                all_cards.extend(cards)
+            else:
+                break  # Stop fetching when no more cards are found
+
     return all_cards
 
 # Function to display card information
@@ -203,7 +213,7 @@ def main():
     # Link to collection page
     url = "https://www.pricecharting.com/offers?status=collection&seller=yx5zdzzvnnhyvjeffskx64pus4&sort=name&category=all&folder-id=&condition-id=all"
     
-    # Fetch all cards by simulating infinite scrolling
+    # Fetch all cards using parallel fetching
     with st.spinner("Fetching all cards..."):
         all_cards = fetch_all_cards(url)
 
