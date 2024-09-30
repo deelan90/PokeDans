@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 import pickle
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 CACHE_FILE = "cache.pkl"
-
 
 # API keys list
 API_KEYS = [
@@ -31,7 +31,6 @@ def save_cache(cache):
 # Function to fetch and convert currency using real-time rates from Fixer API
 def fetch_and_convert_currency(usd_value, cache):
     try:
-        # Use cached rates
         rate_aud = cache.get('rate_aud')
         rate_yen = cache.get('rate_yen')
 
@@ -39,7 +38,6 @@ def fetch_and_convert_currency(usd_value, cache):
             st.error("Exchange rates are not available. Conversion cannot be performed.")
             return 0.0, 0.0
 
-        # Convert USD to AUD and JPY using cached rates
         value_usd = float(usd_value.replace('$', '').replace(',', '').strip())
         value_aud = value_usd * rate_aud
         value_yen = value_usd * rate_yen
@@ -56,37 +54,32 @@ def update_exchange_rates(cache):
         
         try:
             response = requests.get(url)
-            response.raise_for_status()  # Raise an error for bad status codes
+            response.raise_for_status()
             data = response.json()
             
-            if response.status_code == 200 and data.get('success'):
-                # Conversion rates
-                rate_aud = data['rates'].get('AUD') / data['rates'].get('USD')
-                rate_yen = data['rates'].get('JPY') / data['rates'].get('USD')
+            if data.get('success'):
+                rate_usd = data['rates'].get('USD')
+                rate_aud = data['rates'].get('AUD')
+                rate_yen = data['rates'].get('JPY')
 
-                # Ensure rates are not None
-                if rate_aud is not None and rate_yen is not None:
-                    # Update cache
-                    cache['rate_aud'] = rate_aud
-                    cache['rate_yen'] = rate_yen
+                if rate_usd and rate_aud and rate_yen:
+                    cache['rate_aud'] = rate_aud / rate_usd
+                    cache['rate_yen'] = rate_yen / rate_usd
                     cache['last_update'] = datetime.now()
                     save_cache(cache)
-                    st.success("Exchange rates successfully updated.")
                     return
-                else:
-                    st.error("Failed to retrieve valid exchange rates. Please try again later.")
-            else:
-                st.error(f"Failed to fetch exchange rates with API key {api_key}. Error: {data.get('error', 'Unknown error')}")
         except requests.exceptions.RequestException as e:
-            st.error(f"Request failed: {e}")
-    
-    st.error("All API attempts failed. Please check your API keys or network connection.")
+            st.error(f"Exchange rate update failed: {e}")
+        except Exception as e:
+            st.error(f"Unexpected error during exchange rate update: {e}")
+
+    st.error("Failed to update exchange rates from all provided API keys.")
 
 # Function to fetch total value and card count
 def fetch_total_value_and_count(soup):
     try:
         summary_table = soup.find('table', id='summary')
-        total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip().replace('$', '').replace(',', '')
+        total_value_usd = summary_table.find('td', class_='js-value js-price').text.strip()
         total_count = summary_table.find_all('td', class_='number')[-1].text.strip()
         return total_value_usd, total_count
     except AttributeError:
@@ -104,11 +97,11 @@ def get_high_res_image(card_link):
         st.error(f"Error fetching high-resolution image: {e}")
         return None
 
-# Fetch all pages of cards by simulating scroll
+# Fetch all pages of cards using ThreadPoolExecutor for parallel fetching
 def fetch_all_cards(base_url):
     all_cards = []
-    page_number = 1
-    while True:
+
+    def fetch_page(page_number):
         url = f"{base_url}&page={page_number}"
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -116,8 +109,9 @@ def fetch_all_cards(base_url):
         # Extract card data
         card_rows = soup.find_all('tr', class_='offer')
         if not card_rows:
-            break  # No more cards to load
+            return None  # No more cards to load
 
+        cards = []
         for card in card_rows:
             card_name_tag = card.find('p', class_='title')
             if not card_name_tag:
@@ -127,33 +121,42 @@ def fetch_all_cards(base_url):
             grading = card.find('td', class_='includes').text.strip()
             price_usd = card.find('span', class_='js-price').text.strip()
 
-            all_cards.append({
+            cards.append({
                 'name': card_name,
                 'link': card_link,
                 'grading': grading,
                 'price_usd': price_usd
             })
+        return cards
 
-        page_number += 1
-        time.sleep(1)  # Avoid hitting rate limits
+    # Use ThreadPoolExecutor to parallelize fetching pages
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_page = {executor.submit(fetch_page, i): i for i in range(1, 50)}  # Fetch first 50 pages concurrently
+
+        for future in future_to_page:
+            cards = future.result()
+            if cards:
+                all_cards.extend(cards)
+            else:
+                break  # Stop fetching when no more cards are found
 
     return all_cards
 
 # Function to display card information
 def display_card_info(cards, cache):
     card_groups = defaultdict(list)
-    
+
     # Group cards by name
     for card in cards:
         card_groups[card['name']].append(card)
-    
+
     # Display grouped cards
     cols = st.columns(4)  # Create 4 columns
     for index, (card_name, card_list) in enumerate(card_groups.items()):
         try:
             # Fetch high-resolution image (using the link of the first card in the group)
             image_url = get_high_res_image(card_list[0]['link'])
-            
+
             # Display the card in the appropriate column
             with cols[index % 4]:
                 st.markdown(f"<h5 style='text-align:center; color: white;'>{card_name}</h5>", unsafe_allow_html=True)
@@ -203,8 +206,9 @@ def main():
     # Link to collection page
     url = "https://www.pricecharting.com/offers?status=collection&seller=yx5zdzzvnnhyvjeffskx64pus4&sort=name&category=all&folder-id=&condition-id=all"
     
-    # Fetch all cards by simulating infinite scroll pagination
-    all_cards = fetch_all_cards(url)
+    # Fetch all cards using parallel fetching
+    with st.spinner("Fetching all cards..."):
+        all_cards = fetch_all_cards(url)
 
     # Display card info
     display_card_info(all_cards, cache)
