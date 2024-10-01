@@ -35,20 +35,35 @@ def load_cards_via_ajax(base_url):
         ajax_url = f"{base_url}&internal=true&page={page}"
         response = requests.get(ajax_url)
 
+        # Check if the response status is 200 OK
         if response.status_code == 200:
             try:
+                # Try to parse the response as JSON
                 data = response.json()
+                
+                # If 'cards' field does not exist, print the content and break
+                if 'cards' not in data:
+                    st.write(f"Unexpected response format on page {page}:")
+                    st.write(response.text[:500])  # Print part of the response to help debugging
+                    break
+                
+                # Break if no more data is returned
                 if not data.get('cards'):
                     break
+                
+                # Append the cards data
                 all_cards.extend(data['cards'])
                 page += 1
                 st.write(f"Fetched {len(data['cards'])} cards from page {page}")
             except json.JSONDecodeError:
+                # If JSON decoding fails, print part of the response content for debugging
                 st.error("Failed to decode JSON response.")
-                st.text(response.text[:500])  # Print part of the response to help debugging
+                st.write("Response content (first 500 chars):", response.text[:500])
                 break
         else:
+            # Handle non-200 status codes
             st.error(f"HTTP Error {response.status_code} while fetching data.")
+            st.write("Response content (first 500 chars):", response.text[:500])
             break
     
     return all_cards
